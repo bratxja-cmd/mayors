@@ -1,0 +1,1204 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Міські голови України — карта управління</title>
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* ===== СВІТЛА ТЕМА ===== */
+  :root{
+    --bg:#eef1f5;
+    --panel:#ffffff;
+    --panel-2:#f4f6f9;
+    --line:#dde3ea;
+    --ink:#1a2634;
+    --ink-dim:#5a6a7b;
+    --ink-faint:#8b9aab;
+    --shadow:0 12px 32px rgba(30,50,80,.14);
+    --mayor:#12a17d;
+    --secretary:#d98416;
+    --acting:#e08a12;
+    --va:#8a52a3;
+    --nobody:#2b3138;   /* графіт — «немає голови та секретаря» */
+    --accent:#12a17d;
+    --front:#d92b20;
+    --pt-stroke:#ffffff;
+    --border-line:#3d5a80;
+    --border-halo:#ffffff;
+    --label-color:#1a2634;
+    --label-halo:#ffffff;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{
+    font-family:'Inter',system-ui,sans-serif;
+    background:var(--bg);color:var(--ink);
+    display:flex;overflow:hidden;
+  }
+  /* ---------- панель: лише список + фільтри ---------- */
+  #panel{
+    width:320px;min-width:320px;height:100vh;
+    background:var(--panel);border-right:1px solid var(--line);
+    display:flex;flex-direction:column;z-index:2;
+    overflow:hidden;min-height:0;
+  }
+  .brand{padding:18px 20px 14px;border-bottom:1px solid var(--line);flex:none}
+  .brand .kicker{
+    font-family:'Oswald';font-weight:600;letter-spacing:.18em;
+    text-transform:uppercase;font-size:10.5px;color:var(--ink-faint);
+  }
+  .brand h1{font-family:'Oswald';font-weight:600;font-size:21px;line-height:1.1;margin:5px 0 3px}
+  .brand p{margin:0;font-size:12px;color:var(--ink-dim);line-height:1.4}
+
+  .tallies{padding:14px 14px 4px;display:flex;flex-direction:column;gap:6px;flex:none}
+  .tally{
+    display:flex;align-items:center;gap:11px;padding:9px 12px;
+    border:1px solid var(--line);border-radius:9px;background:transparent;
+    cursor:pointer;transition:border-color .15s,transform .05s;user-select:none;
+  }
+  .tally:hover{border-color:var(--accent)}
+  .tally:active{transform:translateY(1px)}
+  .tally.off{opacity:.38}
+  .tally .dot{width:10px;height:10px;border-radius:50%;flex:none}
+  .tally .lab{flex:1;font-size:12.5px}
+  .tally .num{font-family:'Oswald';font-weight:600;font-size:18px}
+  .tally[data-k="mayor"] .dot{background:var(--mayor)}
+  .tally[data-k="acting"] .dot{background:var(--acting)}
+  .tally[data-k="va"] .dot{background:var(--va)}
+  .tally[data-k="none"] .dot{background:var(--nobody)}
+
+  .search{padding:6px 14px 10px;flex:none}
+  .search input{
+    width:100%;padding:9px 11px;border-radius:8px;background:var(--panel-2);
+    border:1px solid var(--line);color:var(--ink);font-size:12.5px;font-family:inherit;
+  }
+  .search input::placeholder{color:var(--ink-faint)}
+  .search input:focus{outline:none;border-color:var(--accent)}
+  .filters-bar{display:flex;align-items:center;gap:8px;padding:2px 16px 10px;flex:none}
+  .filters-btn{flex:1;display:flex;align-items:center;gap:8px;cursor:pointer;
+    background:var(--panel-2);border:1px solid var(--line);border-radius:8px;
+    padding:9px 11px;font:inherit;font-size:12.5px;color:var(--ink);text-align:left}
+  .filters-btn:hover{border-color:var(--accent)}
+  .filters-btn .chev{margin-left:auto;transition:transform .18s;color:var(--ink-faint);font-size:11px}
+  .filters-btn.open .chev{transform:rotate(180deg)}
+  .filters-btn .badge{background:var(--accent);color:#fff;border-radius:999px;
+    padding:1px 7px;font-size:11px;font-weight:600;font-family:'Oswald'}
+  .filters-reset{background:none;border:1px solid var(--line);border-radius:8px;
+    padding:9px 11px;font:inherit;font-size:12px;color:var(--ink-dim);cursor:pointer}
+  .filters-reset:hover{border-color:var(--nobody);color:var(--nobody)}
+  .filters-reset[hidden]{display:none}
+  /* Одна спільна зона прокрутки: спершу фільтри на всю потрібну висоту,
+     одразу за ними — список міст. Коли фільтри розгорнуті, список просто
+     з'їжджає нижче і до нього доводиться прокрутити. */
+  .scrollzone{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;
+    display:flex;flex-direction:column}
+  .scrollzone::-webkit-scrollbar{width:8px}
+  .scrollzone::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px}
+  .controls{padding:4px 16px 14px;display:flex;flex-direction:column;gap:14px;
+    border-bottom:1px solid var(--line);margin-bottom:2px;flex:none}
+  .controls[hidden]{display:none}
+  .ctrl-h{font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-faint);
+    font-family:'Oswald';font-weight:500;margin-bottom:6px}
+  .seg{display:flex;gap:4px;background:var(--panel-2);border:1px solid var(--line);
+    border-radius:8px;padding:3px}
+  .seg button{flex:1;border:none;background:transparent;color:var(--ink-dim);
+    font-family:inherit;font-size:11.5px;padding:6px 4px;border-radius:6px;cursor:pointer;transition:all .12s}
+  .seg button:hover{color:var(--ink)}
+  .seg button.on{background:var(--panel);color:var(--accent);font-weight:600;
+    box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  #partySel,#partyMayorSel,#partySecSel{width:100%;padding:9px 10px;border-radius:8px;background:var(--panel-2);
+    border:1px solid var(--line);color:var(--ink);font-size:12.5px;font-family:inherit;cursor:pointer}
+  #partyMayorSel:focus,#partySecSel:focus{outline:none;border-color:var(--accent)}
+  /* двобічний повзунок населення */
+  .range-wrap{position:relative;height:26px}
+  .range-track{position:absolute;top:11px;left:2px;right:2px;height:4px;border-radius:2px;background:var(--line)}
+  .range-fill{position:absolute;height:100%;border-radius:2px;background:var(--accent)}
+  .range-wrap input[type=range]{position:absolute;top:0;left:0;width:100%;height:26px;margin:0;
+    -webkit-appearance:none;appearance:none;background:transparent;pointer-events:none}
+  .range-wrap input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
+    width:16px;height:16px;border-radius:50%;background:var(--panel);border:2px solid var(--accent);
+    cursor:pointer;pointer-events:auto;margin-top:0}
+  .range-wrap input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;
+    background:var(--panel);border:2px solid var(--accent);cursor:pointer;pointer-events:auto}
+  .range-vals{display:flex;justify-content:space-between;font-size:11px;color:var(--ink-dim);
+    margin-top:2px;font-variant-numeric:tabular-nums}
+  .fixed-note{font-size:12px;color:var(--ink-dim);background:var(--panel-2);
+    border:1px solid var(--line);border-radius:8px;padding:8px 10px;line-height:1.4}
+  .hist{display:flex;align-items:flex-end;gap:2px;height:44px;margin-bottom:2px}
+  .hist i{flex:1;min-height:1px;border-radius:2px 2px 0 0;background:var(--line);
+    transition:background .12s}
+  .hist i.in{background:var(--accent)}
+
+  /* список міст */
+  .list-h{padding:9px 16px 6px;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--ink-faint);font-family:'Oswald';font-weight:500;flex:none;
+    position:sticky;top:0;background:var(--panel);z-index:2;
+    border-bottom:1px solid var(--line)}
+  #list{flex:none;padding:2px 10px 14px}
+  .row{
+    display:flex;align-items:center;gap:11px;padding:10px 10px;border-radius:8px;
+    cursor:pointer;transition:background .12s;
+  }
+  .row:hover{background:var(--panel-2)}
+  .row.sel{background:color-mix(in srgb,var(--accent) 12%,transparent)}
+  .row .rdot{width:9px;height:9px;border-radius:50%;flex:none}
+  .row .rn{flex:1;min-width:0}
+  .row .rc{display:block;font-size:13.5px;font-weight:600;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .row .rr{display:block;font-size:10.5px;color:var(--ink-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    margin-top:3px;letter-spacing:.02em;text-transform:uppercase}
+  .row .rp{font-size:11px;color:var(--ink-dim);font-variant-numeric:tabular-nums}
+
+  .foot{padding:11px 16px;border-top:1px solid var(--line);font-size:10.5px;
+    color:var(--ink-faint);line-height:1.5;flex:none}
+  .foot a{color:var(--ink-dim)}
+
+  /* ---------- карта ---------- */
+  #map{flex:1;height:100vh;background:#05070a}
+
+  /* базовий попап (наведення) */
+  .maplibregl-popup{max-width:none!important}
+  .maplibregl-popup-content{
+    background:var(--panel);color:var(--ink);border:1px solid var(--line);
+    border-radius:11px;padding:0;box-shadow:var(--shadow);overflow:hidden;
+  }
+  .maplibregl-popup-tip{border-top-color:var(--panel)!important;border-bottom-color:var(--panel)!important}
+  .maplibregl-popup-close-button{color:var(--ink-faint);font-size:18px;padding:2px 7px}
+
+  .pc{min-width:220px;max-width:300px}
+  .pc-basic{padding:12px 14px}
+  .pc-city{font-family:'Oswald';font-weight:600;font-size:18px;line-height:1.1}
+  .pc-reg{font-size:11px;color:var(--ink-faint);margin-top:2px}
+  .pc-status{display:inline-flex;align-items:center;gap:7px;margin-top:9px;
+    font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px}
+  .pc-status .d{width:8px;height:8px;border-radius:50%}
+  .pc-lead{margin-top:10px;font-size:12.5px;color:var(--ink-dim);line-height:1.5}
+  .pc-lead b{color:var(--ink);font-weight:600}
+  .pc-role{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint)}
+  .pc-hint{margin-top:10px;font-size:11px;color:var(--accent);cursor:pointer;user-select:none;
+    display:flex;align-items:center;gap:5px}
+  .pc-hint:hover{text-decoration:underline}
+
+  /* деталі (клік) */
+  .pc-det{border-top:1px solid var(--line);padding:12px 14px;
+    max-height:340px;overflow-y:auto}
+  .pc-pop{font-size:11px;color:var(--ink-dim);margin-bottom:10px}
+  .blk{margin-bottom:13px}
+  .blk:last-child{margin-bottom:0}
+  .blk .h{font-family:'Oswald';font-weight:500;font-size:10px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--ink-faint);margin-bottom:7px}
+  .kv{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:12px}
+  .kv .k{color:var(--ink-faint)}
+  .kv .v{color:var(--ink);font-weight:500}
+  .none{font-size:12px;color:var(--ink-dim)}
+  .ctrl-note{font-size:10.5px;color:var(--ink-faint);line-height:1.4;margin-top:5px}
+  .party{display:inline-block;margin-top:6px;font-size:11px;padding:2px 8px;border-radius:6px;
+    border:1px solid var(--line);color:var(--ink);background:var(--panel-2)}
+  .lead-name{font-size:15px;font-weight:600;color:var(--ink);line-height:1.25}
+  .lead-note{font-size:11.5px;color:var(--ink-dim);margin-top:8px;line-height:1.45}
+  .pc-strip{height:4px;width:100%}
+  .mrow{display:grid;gap:6px;margin-top:11px}
+  .mcell{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;
+    padding:8px 6px;text-align:center}
+  .mcell .mv{font-family:'Oswald';font-weight:600;font-size:15px;line-height:1.05;white-space:nowrap}
+  .mcell .ml{font-size:9px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-faint);
+    margin-top:4px;line-height:1.25}
+  .sec-row{display:flex;align-items:center;gap:10px;padding:9px 11px;
+    border:1px solid var(--line);border-radius:9px;background:var(--panel-2)}
+  .sec-av{width:30px;height:30px;border-radius:50%;background:var(--panel);border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;font-family:'Oswald';font-weight:600;
+    font-size:11px;color:var(--ink-dim);flex:none;letter-spacing:.02em}
+  .sec-b{min-width:0;flex:1}
+  .sec-b .sn{font-size:12.5px;font-weight:600;line-height:1.25}
+  .sec-b .sp{font-size:11px;color:var(--ink-dim);margin-top:2px}
+  .pc-foot{margin-top:12px;padding-top:9px;border-top:1px solid var(--line);
+    font-size:10px;color:var(--ink-faint);line-height:1.5}
+  .pc-foot a{color:var(--ink-dim)}
+  .party-wrap{margin-top:9px}
+  .party-label{font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);
+    font-family:'Oswald';font-weight:500;margin-bottom:4px}
+  .party-chip{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:500;
+    padding:4px 10px;border-radius:7px;color:var(--pc);
+    background:color-mix(in srgb,var(--pc) 12%,transparent);
+    border:1px solid color-mix(in srgb,var(--pc) 40%,transparent)}
+  .party-swatch{width:8px;height:8px;border-radius:50%;background:var(--pc);flex:none}
+  .cmp{display:flex;flex-direction:column;gap:6px}
+  .cmp .r{display:grid;grid-template-columns:64px 1fr;gap:9px;align-items:center;
+    padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel-2)}
+  .cmp .role{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);font-weight:600}
+  .cmp .who{font-size:12px;color:var(--ink);font-weight:500;line-height:1.25}
+  .cmp .who small{display:block;color:var(--ink-dim);font-weight:400;margin-top:1px}
+  .cmp .r.on{border-color:var(--accent)}
+  .tl{padding-left:5px}
+  .tl .ev{position:relative;padding:0 0 10px 16px;border-left:2px solid var(--line)}
+  .tl .ev:last-child{border-left-color:transparent;padding-bottom:0}
+  .tl .ev::before{content:'';position:absolute;left:-6px;top:2px;width:10px;height:10px;
+    border-radius:50%;background:var(--accent);border:2px solid var(--panel)}
+  .tl .ev.va-ev::before{background:var(--va)}
+  .tl .yr{font-family:'Oswald';font-weight:600;font-size:13px}
+  .tl .ev.va-ev .yr{color:var(--va)}
+  .tl .tx{font-size:11.5px;color:var(--ink-dim);margin-top:1px;line-height:1.4}
+  .va-box{border:1px solid var(--va);border-radius:9px;padding:10px 12px;
+    background:color-mix(in srgb,var(--va) 12%,transparent)}
+  .va-t{font-family:'Oswald';font-weight:600;font-size:13px;color:var(--va);margin-bottom:3px}
+  .va-x{font-size:12px;color:var(--ink-dim);line-height:1.45}
+
+  /* легенда */
+  .legend-mini{position:absolute;right:14px;bottom:14px;z-index:3;
+    background:var(--panel);border:1px solid var(--line);border-radius:9px;
+    padding:9px 12px;font-size:11px;color:var(--ink-dim);box-shadow:var(--shadow)}
+  .legend-mini div{display:flex;align-items:center;gap:7px;margin:3px 0}
+  .legend-mini .d{width:9px;height:9px;border-radius:50%}
+
+  /* Низький екран: віддаємо трохи висоти списку, фільтри стають нижчі */
+  @media (max-height:780px){
+    .brand{padding:12px 20px 10px}
+  }
+  /* Дуже низький екран (ноутбук 13"): стискаємо шапку, а не список міст */
+  @media (max-height:700px){
+    .brand{padding:10px 20px 8px}
+    .brand p{display:none}
+    .tallies{display:grid;grid-template-columns:1fr 1fr;padding:10px 12px 2px}
+    .tally .num{font-size:15px}
+    .foot{padding:8px 16px;font-size:9.5px}
+  }
+
+  @media (max-width:820px){
+    body{flex-direction:column;overflow:hidden}
+    #map{position:absolute;inset:0;height:100vh;width:100vw}
+    #panel{
+      position:absolute;left:0;right:0;bottom:0;width:100%;min-width:0;
+      height:82vh;border-right:none;border-top:1px solid var(--line);
+      border-radius:16px 16px 0 0;box-shadow:0 -8px 30px rgba(0,0,0,.18);
+      transform:translateY(calc(82vh - 128px));
+      transition:transform .28s cubic-bezier(.4,0,.2,1);z-index:5;
+    }
+    #panel.open{transform:translateY(0)}
+    .sheet-handle{display:flex}
+    .brand{padding-top:6px}
+    .legend-mini{bottom:auto;top:14px;right:14px}
+    .brand{padding:6px 16px 10px}
+    .brand p{display:none}
+    .tallies{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:10px 12px 2px}
+    .tally{padding:7px 9px}
+    .tally .lab{font-size:11px}
+    .tally .num{font-size:15px}
+    .foot{padding:8px 14px;font-size:9.5px}
+  }
+  .sheet-handle{display:none;justify-content:center;padding:8px 0 2px;cursor:grab;touch-action:none}
+  .sheet-handle::before{content:'';width:38px;height:4px;border-radius:3px;background:var(--line)}
+</style>
+</head>
+<body>
+  <aside id="panel">
+    <div class="sheet-handle" id="sheetHandle"></div>
+    <div class="brand">
+      <div class="kicker">Civic Monitor · 2020–2026</div>
+      <h1>Хто керує містами</h1>
+      <p>Статус місцевого самоврядування міст України.</p>
+    </div>
+
+    <div class="tallies" id="tallies">
+      <div class="tally" data-k="mayor"><span class="dot"></span><span class="lab">Міський голова</span><span class="num" id="n-mayor">0</span></div>
+      <div class="tally" data-k="acting"><span class="dot"></span><span class="lab">Виконує обов'язки секретар</span><span class="num" id="n-acting">0</span></div>
+      <div class="tally" data-k="va"><span class="dot"></span><span class="lab">Військова адміністрація</span><span class="num" id="n-va">0</span></div>
+      <div class="tally" data-k="none"><span class="dot"></span><span class="lab">Немає голови та секретаря</span><span class="num" id="n-none">0</span></div>
+    </div>
+
+    <div class="search"><input id="q" type="text" placeholder="Пошук міста…" autocomplete="off" /></div>
+
+    <div class="filters-bar">
+      <button class="filters-btn" id="filtersBtn" aria-expanded="false" aria-controls="controls">
+        <span>Фільтри та вигляд</span>
+        <span class="badge" id="filtersBadge" hidden>0</span>
+        <span class="chev">▼</span>
+      </button>
+      <button class="filters-reset" id="filtersReset" hidden>Скинути</button>
+    </div>
+
+    <div class="scrollzone" id="scrollZone">
+    <div class="controls" id="controls" hidden>
+      <div class="ctrl">
+        <div class="ctrl-h">Розмір точки</div>
+        <div class="fixed-note">Населення міста (2020 рік). Площа кола пропорційна кількості жителів.</div>
+      </div>
+      <div class="ctrl" id="ctrlAge"></div>
+      <div class="ctrl" id="ctrlTenure"></div>
+      <div class="ctrl">
+        <div class="ctrl-h">Партія чинного керівника</div>
+        <select id="partyMayorSel"><option value="">Усі партії</option></select>
+        <div class="ctrl-note">Партія того, хто керує містом зараз: голови або в.о.
+          Міста з військовою адміністрацією та без керівника не належать жодній партії.</div>
+      </div>
+      <div class="ctrl">
+        <div class="ctrl-h">Партія секретаря</div>
+        <select id="partySecSel"><option value="">Усі партії</option></select>
+      </div>
+      <div class="ctrl">
+        <div class="ctrl-h">Стать керівника</div>
+        <div class="seg" id="sexSeg">
+          <button data-s="" class="on">Усі</button>
+          <button data-s="чоловік">Чоловіки</button>
+          <button data-s="жінка">Жінки</button>
+        </div>
+      </div>
+      <div class="ctrl">
+        <div class="ctrl-h">Населення міста</div>
+        <div class="range-wrap" id="popRange">
+          <div class="range-track"><div class="range-fill" id="popFill"></div></div>
+          <input type="range" id="popMin" min="0" max="200" step="1" value="0">
+          <input type="range" id="popMax" min="0" max="200" step="1" value="200">
+        </div>
+        <div class="range-vals"><span id="popMinVal">0</span><span id="popMaxVal">—</span></div>
+        <div class="ctrl-note" id="popCount"></div>
+      </div>
+    </div>
+
+    <div class="list-h">Міста</div>
+    <div id="list"></div>
+    </div>
+
+    <div class="foot">
+      <div id="footData"></div>
+      <div id="footCredits" style="margin-top:4px"></div>
+      <div style="margin-top:6px">
+        Лінія фронту: <a href="https://deepstatemap.live" target="_blank" rel="noopener">DeepStateMap</a> (27.08.2026).
+        Тайли: <a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> ·
+        <a href="https://maplibre.org" target="_blank" rel="noopener">MapLibre</a>
+      </div>
+    </div>
+  </aside>
+
+  <div id="map">
+    <div class="legend-mini">
+      <div><span class="d" style="background:var(--mayor)"></span>міський голова</div>
+      <div><span class="d" style="background:var(--acting)"></span>в.о. керує</div>
+      <div><span class="d" style="background:var(--va)"></span>військова адмін.</div>
+      <div><span class="d" style="background:var(--nobody)"></span>керівника немає</div>
+      <div style="margin-top:5px"><span class="d" style="width:16px;height:0;border-top:2px dashed var(--front);border-radius:0"></span>лінія фронту</div>
+    </div>
+  </div>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+
+<!-- Повний набір даних. Генерується командою: python build_data.py mayors.xlsx
+     Якщо файлу немає (наприклад, ви щойно клонували репозиторій),
+     карта покаже демонстраційні дані нижче. -->
+<script src="cities.js"></script>
+
+<script>
+const DEMO_CITIES = [
+  {city:"Ладижин",region:"Вінницька",district:"Гайсинський",pop:22589,lat:48.6810505,lon:29.2567642,
+   status:"secretary",
+   mayor:{name:"Коломєйцев Валерій Іванович",born:1952,firstElected:2006,party:"Наш край",years:16,endYear:2022},
+   secretary:{name:"Олександр Коломієць",party:"Наш край"},
+   acting:{name:"Олександр Коломієць",party:"Наш край",sex:"чоловік",kind:"secretary",since:2022,years:4}},
+
+  {city:"Тульчин",region:"Вінницька",district:"Тульчинський",pop:14871,lat:48.6730485,lon:28.8569476,
+   status:"mayor",
+   mayor:{name:"Весняний Валерій Михайлович",born:1956,firstElected:2006,party:"Українська Стратегія Гройсмана",years:20,sex:"чоловік"},
+   secretary:{name:"Траченко Наталія Михайлівна",party:"Українська Стратегія Гройсмана",sex:"жінка"}},
+
+  {city:"Гайсин",region:"Вінницька",district:"Гайсинський",pop:25818,lat:48.8120874,lon:29.3893874,
+   status:"mayor",
+   mayor:{name:"Гук Анатолій Ілліч",born:1944,firstElected:2006,party:"Українська Стратегія Гройсмана",years:20,sex:"чоловік"},
+   secretary:null},
+
+  {city:"Жмеринка",region:"Вінницька",district:"Жмеринський",pop:34353,lat:49.0354593,lon:28.1147317,
+   status:"secretary",
+   mayor:{name:"Кушнір Анатолій Петрович",born:1961,firstElected:2014,party:"Українська Стратегія Гройсмана",years:8,endYear:2022},
+   secretary:{name:"Кожуховський Вадим Вікторович",party:"Українська Стратегія Гройсмана",sex:"чоловік"},
+   acting:{name:"Кожуховський Вадим Вікторович",party:"Українська Стратегія Гройсмана",sex:"чоловік",kind:"secretary",since:2022,years:4}},
+
+  {city:"Гнівань",region:"Вінницька",district:"Вінницький",pop:12330,lat:49.0933696,lon:28.338343,
+   status:"mayor",
+   mayor:{name:"Кулешов Володимир Володимирович",born:1966,firstElected:2010,party:"Українська Стратегія Гройсмана",years:16,sex:"чоловік"},
+   secretary:{name:"Висідалко Андрій Тимофійович",party:"Українська Стратегія Гройсмана",sex:"чоловік"}},
+
+  {city:"Вінниця",region:"Вінницька",district:"Вінницький",pop:370707,lat:49.2320162,lon:28.467975,
+   status:"mayor",
+   mayor:{name:"Моргунов Сергій Анатолійович",born:1968,firstElected:2015,party:"Українська Стратегія Гройсмана",years:11,sex:"чоловік"},
+   secretary:{name:"Яблонський Павло Васильович",party:"Українська Стратегія Гройсмана",sex:"чоловік"}},
+
+  {city:"Херсон",region:"Херсонська",district:"Херсонський",pop:328360,lat:46.6354,lon:32.6169,
+   status:"va",
+   mayor:{name:"Колихаєв Ігор Вікторович",born:1971,firstElected:2020,party:"Партія Ігоря Колихаєва «НАМ ТУТ ЖИТИ!»",years:2,endYear:2022},
+   secretary:null,
+   va:{since:2022,reason:"міського голову захоплено окупантами"}},
+
+  {city:"Берислав",region:"Херсонська",district:"Бериславський",pop:15455,lat:46.8389,lon:33.4241,
+   status:"va",
+   mayor:{name:"Шаповалов Олександр Миколайович",born:1957,firstElected:2006,party:"Партія Ігоря Колихаєва «НАМ ТУТ ЖИТИ!»",years:16,endYear:2022},
+   secretary:null,
+   va:{since:2022,reason:"голова недоступний"}}
+];
+
+/* Дані з cities.js мають пріоритет; демо — лише запасний варіант. */
+const HAS_FULL_DATA = !!(window.CITIES && window.CITIES.length);
+const CITIES = HAS_FULL_DATA ? window.CITIES : DEMO_CITIES;
+const UA_BORDER = {"type":"FeatureCollection","features":[{"type":"Feature","properties":{},"geometry":{"coordinates":[[[33.1924,52.3739],[33.1677,52.3421],[33.1155,52.3387],[33.0661,52.3034],[33.0634,52.3286],[32.9974,52.29],[32.9535,52.2682],[32.8876,52.248],[32.8848,52.2715],[32.8354,52.2732],[32.709,52.2497],[32.6541,52.2833],[32.5992,52.3034],[32.5745,52.3068],[32.5497,52.3303],[32.4893,52.3236],[32.4344,52.3236],[32.3904,52.337],[32.3602,52.3303],[32.3712,52.2749],[32.4014,52.248],[32.33,52.2396],[32.3328,52.2042],[32.3465,52.179],[32.3273,52.147],[32.3767,52.1453],[32.33,52.1251],[32.2778,52.0947],[32.1954,52.0677],[32.1515,52.0626],[32.1075,52.0356],[31.9894,52.0491],[31.9318,52.0491],[31.9455,52.0744],[31.8741,52.1082],[31.8082,52.0981],[31.7838,52.1135],[31.7577,52.1065],[31.7158,52.0964],[31.7014,52.1061],[31.6732,52.112],[31.6032,52.1145],[31.5098,52.1246],[31.4741,52.1141],[31.4535,52.1208],[31.4425,52.1398],[31.3951,52.1419],[31.3745,52.1322],[31.3814,52.1196],[31.3636,52.1145],[31.3196,52.1036],[31.3079,52.0863],[31.3086,52.0778],[31.2935,52.0533],[31.2448,52.0411],[31.2098,52.0483],[31.1995,52.069],[31.1473,52.0787],[31.1287,52.1019],[31.1109,52.0955],[31.0862,52.0892],[31.0546,52.0892],[30.9797,52.0753],[30.9584,52.0803],[30.9536,52.0884],[30.9399,52.0871],[30.944,52.074],[30.9282,52.0719],[30.9324,52.0605],[30.9413,52.0504],[30.9275,52.0381],[30.931,52.0263],[30.9351,52.02],[30.931,52.0111],[30.9166,52.0132],[30.9097,52.0077],[30.8918,52.0022],[30.8857,51.9976],[30.8905,51.9933],[30.8994,51.99],[30.9008,51.9849],[30.8857,51.9832],[30.8795,51.9832],[30.8767,51.9768],[30.8809,51.9722],[30.8747,51.9646],[30.8596,51.9663],[30.852,51.9688],[30.8424,51.9608],[30.8314,51.9591],[30.8259,51.9561],[30.8287,51.9506],[30.8156,51.9519],[30.8094,51.9532],[30.8019,51.9481],[30.8039,51.932],[30.8177,51.9176],[30.7957,51.9036],[30.7943,51.8951],[30.7785,51.8947],[30.7614,51.8985],[30.7463,51.8998],[30.7353,51.8981],[30.7243,51.885],[30.7154,51.8727],[30.6955,51.8617],[30.6817,51.8252],[30.6632,51.8197],[30.6536,51.8154],[30.6591,51.8018],[30.6618,51.7921],[30.6508,51.7836],[30.6337,51.781],[30.6206,51.7729],[30.6041,51.7644],[30.6083,51.7576],[30.6275,51.7623],[30.6392,51.7585],[30.6398,51.7496],[30.6289,51.7398],[30.6165,51.7296],[30.6186,51.7155],[30.6117,51.7075],[30.5952,51.7062],[30.5753,51.7079],[30.5602,51.7058],[30.5533,51.6977],[30.5595,51.6896],[30.5712,51.676],[30.5671,51.6632],[30.5719,51.6521],[30.5739,51.6453],[30.5574,51.6402],[30.5389,51.6402],[30.5375,51.6338],[30.5444,51.6278],[30.5499,51.6231],[30.5423,51.6197],[30.5286,51.6206],[30.5252,51.6142],[30.5265,51.6031],[30.5162,51.6005],[30.5039,51.6014],[30.5011,51.5933],[30.5121,51.5886],[30.5245,51.5865],[30.5375,51.5809],[30.5471,51.5749],[30.5368,51.5715],[30.5231,51.5719],[30.5224,51.5643],[30.5265,51.5544],[30.5355,51.5459],[30.5423,51.5386],[30.5568,51.5472],[30.5643,51.5506],[30.5746,51.5451],[30.5787,51.5391],[30.5753,51.5318],[30.5664,51.5181],[30.5616,51.5075],[30.5698,51.5023],[30.576,51.4946],[30.5801,51.4857],[30.5856,51.4741],[30.5986,51.4703],[30.6096,51.4681],[30.6158,51.4638],[30.6076,51.4557],[30.5897,51.4527],[30.5732,51.448],[30.5725,51.4377],[30.5842,51.4228],[30.5931,51.4228],[30.6048,51.4279],[30.6144,51.4232],[30.6467,51.3718],[30.633,51.3636],[30.6282,51.3555],[30.6392,51.3469],[30.6467,51.3418],[30.6412,51.3319],[30.6151,51.3293],[30.5986,51.3186],[30.5883,51.3083],[30.6028,51.3074],[30.6048,51.3044],[30.5945,51.3023],[30.5973,51.2976],[30.6048,51.2984],[30.6124,51.3049],[30.6096,51.2916],[30.6083,51.2821],[30.5966,51.2774],[30.5787,51.2748],[30.5671,51.2675],[30.5595,51.2559],[30.4929,51.2778],[30.4524,51.2722],[30.4462,51.28],[30.4593,51.2903],[30.4538,51.2984],[30.4544,51.3062],[30.4297,51.304],[30.3933,51.3087],[30.381,51.3203],[30.3411,51.3491],[30.3157,51.3585],[30.3556,51.3769],[30.337,51.424],[30.3137,51.4313],[30.2773,51.4626],[30.2354,51.4869],[30.2024,51.4912],[30.1702,51.51],[30.1585,51.5079],[30.1571,51.4874],[30.1249,51.4993],[30.1242,51.5053],[30.1159,51.5023],[30.1173,51.4895],[30.1029,51.4869],[30.0198,51.5036],[30.0116,51.5032],[30.0109,51.4942],[29.9896,51.4827],[29.9779,51.4822],[29.9704,51.4831],[29.9656,51.4763],[29.9546,51.4686],[29.9401,51.4724],[29.9395,51.4831],[29.9175,51.4899],[29.8983,51.4848],[29.8797,51.4814],[29.879,51.4737],[29.8694,51.4557],[29.8715,51.4467],[29.8461,51.4476],[29.8378,51.4549],[29.8097,51.4472],[29.8021,51.4549],[29.7863,51.4557],[29.7905,51.4403],[29.7575,51.4489],[29.7362,51.4566],[29.7335,51.4677],[29.7259,51.4891],[29.7369,51.4959],[29.7335,51.5058],[29.7328,51.5113],[29.7362,51.5173],[29.7307,51.5284],[29.7067,51.5267],[29.6978,51.5194],[29.6792,51.5143],[29.6634,51.5087],[29.6669,51.5015],[29.6538,51.5032],[29.6428,51.501],[29.6367,51.4959],[29.6243,51.5028],[29.6174,51.4929],[29.603,51.4908],[29.6009,51.4797],[29.5982,51.4715],[29.5858,51.4668],[29.57,51.4591],[29.5549,51.472],[29.5343,51.4797],[29.5268,51.46],[29.5117,51.448],[29.5172,51.4339],[29.5137,51.4189],[29.5076,51.4219],[29.4897,51.3958],[29.4396,51.4065],[29.4114,51.4099],[29.3798,51.4022],[29.3579,51.3846],[29.3332,51.3821],[29.3208,51.3774],[29.3112,51.3872],[29.3091,51.424],[29.2981,51.4493],[29.2871,51.4566],[29.2679,51.4583],[29.2611,51.4763],[29.2425,51.4938],[29.2487,51.5233],[29.2583,51.5293],[29.2542,51.5472],[29.2528,51.5553],[29.2473,51.5668],[29.2068,51.5643],[29.1958,51.5801],[29.1951,51.5993],[29.1739,51.612],[29.1793,51.6193],[29.156,51.6274],[29.1677,51.6491],[29.1327,51.6513],[29.1134,51.6555],[29.0915,51.6419],[29.0873,51.6295],[29.0606,51.6244],[29.0214,51.5907],[28.9953,51.5698],[28.9713,51.5715],[28.9617,51.5907],[28.9198,51.5818],[28.8786,51.5852],[28.871,51.5728],[28.8552,51.5651],[28.8202,51.5566],[28.7907,51.5241],[28.7626,51.4848],[28.768,51.4698],[28.7777,51.4476],[28.7674,51.4373],[28.7502,51.4163],[28.7413,51.4258],[28.7344,51.4339],[28.7337,51.4647],[28.7159,51.4591],[28.7152,51.448],[28.6939,51.4407],[28.6808,51.4429],[28.6403,51.5502],[28.6513,51.5579],[28.6355,51.5579],[28.628,51.5613],[28.6534,51.5655],[28.6513,51.5681],[28.6376,51.5673],[28.6238,51.5694],[28.5888,51.5715],[28.5538,51.5715],[28.5511,51.5801],[28.5202,51.5822],[28.5099,51.5886],[28.4584,51.5899],[28.3753,51.548],[28.3581,51.5408],[28.3464,51.5404],[28.354,51.5519],[28.3492,51.5643],[28.33,51.5801],[28.2785,51.6223],[28.2496,51.6193],[28.251,51.6257],[28.2654,51.6743],[28.2544,51.6802],[28.1645,51.6427],[28.161,51.6214],[28.1377,51.6057],[28.1274,51.6074],[28.1068,51.5826],[28.0807,51.5737],[28.067,51.5758],[28.0429,51.5643],[28.0162,51.5621],[27.9379,51.5566],[27.9571,51.5749],[27.9715,51.595],[27.9496,51.5903],[27.9331,51.5766],[27.9166,51.583],[27.9187,51.6031],[27.9015,51.6155],[27.8754,51.6223],[27.85,51.6193],[27.8321,51.6048],[27.8205,51.5822],[27.8349,51.5617],[27.8411,51.5459],[27.8397,51.5378],[27.8067,51.5284],[27.7889,51.5228],[27.7717,51.5002],[27.7594,51.4835],[27.7491,51.472],[27.7271,51.4775],[27.7079,51.4938],[27.6859,51.4985],[27.6708,51.5109],[27.6619,51.516],[27.677,51.522],[27.677,51.5412],[27.7058,51.5566],[27.7209,51.5728],[27.7257,51.5933],[27.7202,51.6022],[27.6866,51.6069],[27.6701,51.6112],[27.6426,51.6129],[27.6255,51.6061],[27.5994,51.6116],[27.5753,51.621],[27.5465,51.6325],[27.5321,51.6206],[27.5129,51.6317],[27.5091,51.5843],[27.4761,51.6201],[27.4239,51.6133],[27.3663,51.6167],[27.2317,51.6065],[27.2591,51.6645],[27.2097,51.6679],[27.1987,51.7751],[26.9872,51.7717],[26.9488,51.7462],[26.8719,51.7598],[26.7785,51.7717],[26.6961,51.826],[26.5945,51.8226],[26.545,51.8056],[26.4846,51.8005],[26.4022,51.843],[26.383,51.8752],[26.2978,51.8667],[26.1687,51.8684],[26.0918,51.9074],[26.0094,51.9311],[25.927,51.9227],[25.8447,51.9311],[25.7787,51.9532],[25.776,51.9227],[25.6496,51.921],[25.581,51.9362],[25.5206,51.9447],[25.4821,51.9278],[25.3365,51.9362],[25.2459,51.9768],[25.1717,51.9684],[25.0838,51.9498],[24.9328,51.8973],[24.9053,51.9159],[24.8394,51.9006],[24.7982,51.9125],[24.746,51.8837],[24.6581,51.9023],[24.5675,51.8973],[24.367,51.8752],[24.2873,51.8175],[24.3093,51.7496],[24.2681,51.7155],[24.1225,51.6662],[24.0745,51.6193],[23.9907,51.5843],[23.9399,51.5937],[23.8836,51.5937],[23.8671,51.6031],[23.9138,51.6312],[23.863,51.6415],[23.7833,51.6389],[23.7792,51.6662],[23.6707,51.6474],[23.6007,51.6219],[23.6556,51.5818],[23.6309,51.5519],[23.6762,51.504],[23.6433,51.5032],[23.6175,51.5071],[23.6219,51.4958],[23.6393,51.4858],[23.66,51.4889],[23.6734,51.4717],[23.6487,51.4572],[23.6514,51.4469],[23.6862,51.4428],[23.6778,51.431],[23.7018,51.4045],[23.6809,51.3901],[23.6878,51.3711],[23.6576,51.3554],[23.6375,51.3256],[23.6501,51.2886],[23.6823,51.2908],[23.7081,51.2783],[23.725,51.2597],[23.742,51.2148],[23.8117,51.1822],[23.8234,51.1636],[23.8649,51.1542],[23.8694,51.1308],[23.8492,51.1288],[23.8767,51.0797],[23.9077,51.0748],[23.9274,51.0152],[23.9187,51.0071],[23.9536,50.9937],[23.9695,50.9778],[23.9711,50.9495],[24.0024,50.929],[24.0536,50.8938],[24.0958,50.8822],[24.1442,50.8687],[24.121,50.8434],[24.0692,50.835],[24.0201,50.8403],[23.9859,50.8354],[23.9584,50.7955],[23.9886,50.7677],[24.0189,50.7695],[24.0216,50.7225],[24.0765,50.7156],[24.0683,50.6808],[24.0903,50.6512],[24.0875,50.5449],[24.0408,50.4505],[24.0024,50.4138],[23.7772,50.3998],[23.6948,50.363],[23.6783,50.3314],[23.6124,50.3069],[23.3514,50.1417],[23.2306,50.0536],[23.0548,49.8946],[22.8021,49.689],[22.717,49.5929],[22.6483,49.5306],[22.6785,49.4967],[22.6978,49.4753],[22.7499,49.3412],[22.7362,49.2499],[22.7197,49.2319],[22.7417,49.2086],[22.717,49.1691],[22.7499,49.1781],[22.7554,49.1548],[22.7966,49.1548],[22.7966,49.1377],[22.8378,49.1098],[22.8639,49.1116],[22.868,49.0964],[22.8983,49.091],[22.8653,49.0658],[22.8921,49.0078],[22.8694,49.0029],[22.8467,49.0029],[22.8334,49.0255],[22.8141,49.0245],[22.8077,49.0342],[22.7652,49.0526],[22.7554,49.0429],[22.7202,49.052],[22.6985,49.0496],[22.6829,49.0392],[22.6397,49.0594],[22.6276,49.079],[22.605,49.0842],[22.5993,49.0935],[22.5824,49.0969],[22.5646,49.0881],[22.5569,49.0785],[22.5536,49.0292],[22.5417,49.0218],[22.5471,49.0077],[22.5239,48.9975],[22.5042,48.9997],[22.4848,48.9923],[22.4737,48.9753],[22.4306,48.9322],[22.4361,48.9137],[22.4253,48.8858],[22.3918,48.8694],[22.3828,48.8276],[22.3926,48.81],[22.3895,48.7962],[22.3782,48.7834],[22.352,48.7673],[22.3494,48.7534],[22.3699,48.7348],[22.3524,48.7114],[22.3478,48.6867],[22.3064,48.6746],[22.2843,48.66],[22.2591,48.6494],[22.2449,48.6269],[22.1935,48.6081],[22.1677,48.5781],[22.1616,48.5573],[22.1587,48.5229],[22.1416,48.4401],[22.1374,48.4199],[22.1447,48.4043],[22.1559,48.4023],[22.1554,48.4094],[22.1831,48.4145],[22.2103,48.4262],[22.2294,48.4118],[22.2518,48.4108],[22.2646,48.41],[22.2561,48.3927],[22.2401,48.3877],[22.2674,48.3614],[22.3178,48.3532],[22.3209,48.3385],[22.3138,48.3263],[22.3199,48.3228],[22.3211,48.3148],[22.3369,48.3077],[22.3387,48.2803],[22.3596,48.2663],[22.3693,48.2449],[22.3843,48.2342],[22.4007,48.2492],[22.4201,48.2511],[22.4197,48.2483],[22.431,48.2472],[22.4331,48.2523],[22.4488,48.2437],[22.468,48.2427],[22.4702,48.2475],[22.4884,48.2547],[22.5031,48.2466],[22.4984,48.2399],[22.5149,48.2381],[22.5132,48.2268],[22.5349,48.2089],[22.57,48.1965],[22.5695,48.1859],[22.56,48.1826],[22.5765,48.16],[22.5976,48.1458],[22.5881,48.1424],[22.596,48.1356],[22.5941,48.126],[22.5992,48.1167],[22.5907,48.1081],[22.6208,48.1053],[22.6345,48.0959],[22.6758,48.0909],[22.7051,48.1095],[22.7133,48.1107],[22.7201,48.115],[22.7291,48.114],[22.7346,48.1197],[22.7444,48.1174],[22.7565,48.1205],[22.7591,48.115],[22.7644,48.1098],[22.7775,48.1112],[22.771,48.1216],[22.7897,48.1164],[22.7988,48.1225],[22.8063,48.1207],[22.8017,48.1067],[22.8096,48.107],[22.8201,48.1184],[22.8309,48.1104],[22.8297,48.0956],[22.8371,48.0793],[22.8461,48.0826],[22.8603,48.0767],[22.8605,48.0571],[22.8702,48.0519],[22.8811,48.0552],[22.8809,48.0357],[22.8672,48.022],[22.8638,48.0123],[22.8383,47.9922],[22.8436,47.9839],[22.8392,47.9809],[22.8504,47.9816],[22.8588,47.9787],[22.8583,47.9762],[22.8615,47.9771],[22.8612,47.9737],[22.867,47.9736],[22.8675,47.9774],[22.8734,47.9736],[22.8715,47.9702],[22.8733,47.9667],[22.8773,47.9678],[22.8794,47.9637],[22.8921,47.9671],[22.8924,47.9633],[22.89,47.9616],[22.8925,47.9611],[22.8909,47.9565],[22.8959,47.9568],[22.8948,47.9549],[22.8973,47.9546],[22.8972,47.9541],[22.8983,47.9568],[22.9463,47.9651],[22.9456,47.9674],[22.9381,47.9936],[22.9216,48.0039],[22.9216,48.0143],[22.9281,48.0186],[22.9446,48.0166],[22.9625,48.0076],[22.9655,48.0111],[22.9824,48.0074],[22.9988,47.9952],[23.0088,47.995],[23.0194,47.9897],[23.0308,47.9993],[23.0689,48.0083],[23.0864,48.0046],[23.0974,48.0138],[23.0905,48.0184],[23.1056,48.0331],[23.1015,48.0423],[23.107,48.0551],[23.107,48.0652],[23.118,48.0753],[23.1221,48.0909],[23.1331,48.0955],[23.1523,48.1129],[23.1784,48.1194],[23.1894,48.0964],[23.2457,48.0918],[23.2649,48.1001],[23.2718,48.0836],[23.2883,48.0753],[23.2787,48.057],[23.2965,48.0432],[23.3377,48.0359],[23.3322,48.0221],[23.3789,48.0083],[23.4201,47.9927],[23.4489,47.9835],[23.4984,47.9679],[23.5313,48.0193],[23.5712,48.0028],[23.622,48.0037],[23.67,47.9872],[23.7373,47.9927],[23.8019,47.9826],[23.8348,47.9669],[23.8568,47.9357],[23.8699,47.9324],[23.8836,47.9426],[23.9392,47.9458],[23.9509,47.9628],[23.9749,47.9651],[23.99,47.961],[24.0134,47.9665],[24.0305,47.949],[24.0621,47.9531],[24.0978,47.9366],[24.1109,47.9159],[24.1479,47.9131],[24.1679,47.9191],[24.1981,47.9136],[24.2214,47.8979],[24.2578,47.9062],[24.2894,47.9081],[24.321,47.9255],[24.3464,47.9136],[24.3793,47.9265],[24.3951,47.9536],[24.437,47.9692],[24.4872,47.9591],[24.5105,47.9545],[24.5359,47.9623],[24.5592,47.9605],[24.5716,47.9715],[24.6032,47.9485],[24.6224,47.9518],[24.641,47.9283],[24.6691,47.8961],[24.6684,47.8703],[24.7034,47.85],[24.7048,47.8404],[24.735,47.8427],[24.7515,47.8298],[24.7701,47.839],[24.7845,47.8219],[24.8264,47.8201],[24.8202,47.8049],[24.8552,47.7647],[24.8785,47.7504],[24.8854,47.7245],[24.9506,47.7292],[24.9905,47.7269],[25.0049,47.7338],[25.0372,47.7264],[25.0543,47.7462],[25.0687,47.7421],[25.1182,47.7573],[25.1147,47.7693],[25.147,47.7929],[25.1635,47.7878],[25.1752,47.7979],[25.1697,47.8104],[25.1848,47.8251],[25.1985,47.8394],[25.2006,47.85],[25.2129,47.8583],[25.2239,47.8625],[25.2253,47.8827],[25.2349,47.8947],[25.2637,47.8933],[25.2768,47.8942],[25.307,47.9145],[25.3523,47.9159],[25.4574,47.9265],[25.5377,47.9361],[25.5906,47.938],[25.6277,47.9504],[25.6579,47.9476],[25.6915,47.9449],[25.7176,47.9426],[25.7279,47.9458],[25.7423,47.9407],[25.778,47.9398],[25.8179,47.955],[25.8234,47.9637],[25.8618,47.9697],[25.8893,47.9605],[25.9058,47.9656],[25.9174,47.978],[25.9428,47.9757],[25.9586,47.9706],[26.0623,47.9881],[26.1042,47.9784],[26.1275,47.9862],[26.1413,47.9849],[26.1873,47.9954],[26.2017,48.0101],[26.2127,48.0538],[26.2704,48.0817],[26.2875,48.112],[26.3047,48.1418],[26.3377,48.1565],[26.3308,48.1789],[26.3363,48.1844],[26.3507,48.1835],[26.3493,48.1913],[26.3596,48.1844],[26.3741,48.1963],[26.3864,48.194],[26.3802,48.1876],[26.3981,48.1904],[26.4228,48.1995],[26.4379,48.1926],[26.4359,48.2013],[26.4565,48.205],[26.4578,48.2137],[26.4722,48.2169],[26.4867,48.2151],[26.4983,48.2174],[26.5169,48.2119],[26.5244,48.2128],[26.5299,48.2114],[26.5471,48.2164],[26.5512,48.2238],[26.5746,48.2187],[26.5704,48.2343],[26.58,48.2443],[26.5883,48.2457],[26.5986,48.237],[26.6206,48.2393],[26.6171,48.2498],[26.6274,48.2471],[26.6295,48.2581],[26.6304,48.2598],[26.6263,48.2621],[26.6191,48.2742],[26.642,48.2889],[26.6495,48.2969],[26.6499,48.3046],[26.6755,48.3175],[26.6762,48.3252],[26.6975,48.3275],[26.6829,48.3557],[26.6933,48.3583],[26.6998,48.3499],[26.7163,48.3374],[26.7406,48.3131],[26.7587,48.3209],[26.761,48.3182],[26.7608,48.3118],[26.7662,48.3043],[26.7961,48.2907],[26.8122,48.2919],[26.816,48.2984],[26.8245,48.3055],[26.8284,48.3235],[26.825,48.3274],[26.8223,48.3434],[26.8199,48.3464],[26.8084,48.3519],[26.7942,48.3437],[26.7776,48.3519],[26.7634,48.356],[26.7622,48.3594],[26.7129,48.4055],[26.7268,48.4114],[26.7511,48.399],[26.7668,48.41],[26.775,48.4206],[26.7963,48.421],[26.8491,48.4137],[26.8711,48.4211],[26.8884,48.4104],[26.8988,48.3978],[26.8925,48.3856],[26.9281,48.3632],[26.9286,48.3706],[26.9912,48.3569],[27.0005,48.3618],[27.0007,48.3805],[27.0258,48.3836],[27.048,48.3746],[27.0503,48.3882],[27.0459,48.3908],[27.0467,48.4012],[27.0381,48.4064],[27.0408,48.41],[27.0247,48.4189],[27.0136,48.422],[27.025,48.426],[27.0379,48.4209],[27.0515,48.4241],[27.063,48.4199],[27.0654,48.4259],[27.0721,48.4328],[27.0834,48.4338],[27.0895,48.4128],[27.109,48.3971],[27.1091,48.3927],[27.1208,48.3805],[27.1393,48.373],[27.1611,48.3799],[27.1662,48.378],[27.1922,48.3937],[27.1986,48.3893],[27.2145,48.3892],[27.2365,48.3713],[27.2633,48.3795],[27.2866,48.3695],[27.2969,48.4105],[27.3127,48.4203],[27.3094,48.4278],[27.3211,48.4429],[27.3381,48.4401],[27.3389,48.4486],[27.3518,48.4415],[27.3498,48.4497],[27.3801,48.4369],[27.3759,48.4301],[27.3773,48.4167],[27.3838,48.4113],[27.4164,48.4123],[27.4466,48.4091],[27.4672,48.4497],[27.4919,48.4593],[27.5056,48.4565],[27.5805,48.4916],[27.6045,48.4889],[27.5887,48.4615],[27.634,48.4456],[27.678,48.4383],[27.702,48.4511],[27.7515,48.4579],[27.8146,48.4301],[27.8215,48.4178],[27.8757,48.4041],[27.8778,48.3836],[27.8957,48.3585],[27.9678,48.3238],[28.0364,48.327],[28.0831,48.3115],[28.092,48.2878],[28.0783,48.2485],[28.0865,48.2347],[28.1092,48.2329],[28.1401,48.2466],[28.1442,48.2631],[28.1861,48.253],[28.1827,48.237],[28.1875,48.2105],[28.2108,48.205],[28.3056,48.243],[28.3179,48.2324],[28.3475,48.2475],[28.3688,48.2324],[28.3591,48.1876],[28.3125,48.1643],[28.3042,48.1418],[28.3406,48.134],[28.3605,48.1381],[28.3832,48.1734],[28.4333,48.1743],[28.4333,48.1368],[28.4216,48.1221],[28.4649,48.0735],[28.5033,48.0652],[28.4958,48.0836],[28.4985,48.1212],[28.5212,48.1381],[28.5061,48.151],[28.5356,48.1578],[28.5789,48.183],[28.5789,48.1665],[28.5899,48.1734],[28.6194,48.1551],[28.6427,48.1533],[28.6475,48.1455],[28.6832,48.1455],[28.688,48.1249],[28.7059,48.1304],[28.7176,48.1271],[28.7498,48.1345],[28.7691,48.1253],[28.7904,48.1258],[28.8041,48.1336],[28.8116,48.1249],[28.8377,48.1281],[28.8577,48.1042],[28.8515,48.0795],[28.8343,48.0739],[28.8474,48.0698],[28.8501,48.0606],[28.8371,48.034],[28.8721,48.0152],[28.9016,48.0111],[28.8803,48.0019],[28.9249,47.96],[28.962,47.978],[29.03,47.9462],[29.0417,47.9476],[29.063,47.9416],[29.087,47.949],[29.0788,47.9725],[29.0973,47.9614],[29.0939,47.9738],[29.0884,47.9784],[29.1035,47.9821],[29.1323,47.9839],[29.1268,47.9931],[29.1742,47.9927],[29.1817,47.9646],[29.2017,47.885],[29.2126,47.886],[29.2209,47.8956],[29.2209,47.886],[29.2827,47.8901],[29.2703,47.8772],[29.2346,47.8634],[29.2092,47.8394],[29.1969,47.8205],[29.2188,47.7979],[29.2353,47.7979],[29.2463,47.8113],[29.2779,47.8025],[29.2504,47.7523],[29.2147,47.7384],[29.2051,47.7195],[29.2312,47.6825],[29.2202,47.6802],[29.2175,47.6589],[29.212,47.6571],[29.2099,47.6432],[29.2332,47.6418],[29.2202,47.627],[29.212,47.6284],[29.2161,47.6126],[29.2023,47.602],[29.1872,47.5876],[29.1831,47.5714],[29.1714,47.5682],[29.1646,47.5705],[29.1186,47.5548],[29.1502,47.5065],[29.1852,47.5181],[29.1872,47.5149],[29.1845,47.4945],[29.1907,47.4866],[29.1852,47.4778],[29.1591,47.4592],[29.1611,47.455],[29.1893,47.4662],[29.1927,47.4573],[29.1838,47.4471],[29.1859,47.4378],[29.1886,47.4295],[29.1934,47.4267],[29.2415,47.4615],[29.2435,47.4151],[29.2786,47.436],[29.317,47.4485],[29.3376,47.3728],[29.3623,47.3732],[29.3925,47.3798],[29.3967,47.3537],[29.3843,47.3453],[29.3974,47.3011],[29.4214,47.3039],[29.4283,47.2923],[29.4447,47.2937],[29.4468,47.3011],[29.4859,47.3081],[29.4873,47.3337],[29.4914,47.3551],[29.5237,47.3658],[29.5738,47.3695],[29.5985,47.2569],[29.5532,47.2508],[29.5814,47.1351],[29.4949,47.1295],[29.4969,47.1131],[29.5155,47.1108],[29.5333,47.0767],[29.5477,47.0739],[29.5498,47.093],[29.6116,47.0991],[29.6301,47.0463],[29.6033,47.0416],[29.5951,46.9643],[29.5608,46.9578],[29.5731,46.9409],[29.6384,46.9535],[29.6514,46.9184],[29.7166,46.9306],[29.7242,46.9184],[29.7496,46.8635],[29.8499,46.8776],[29.8814,46.8846],[29.8869,46.8503],[29.9068,46.8231],[29.9515,46.8405],[29.9824,46.8184],[29.9412,46.8048],[29.9693,46.7549],[29.9707,46.6871],[29.9419,46.6381],[29.9597,46.6023],[29.9364,46.574],[29.9446,46.5579],[29.8766,46.5471],[29.8814,46.5414],[29.8876,46.5452],[29.9014,46.5338],[29.8965,46.5277],[29.9117,46.5201],[29.9075,46.513],[29.9247,46.5107],[29.9274,46.5045],[29.9426,46.5017],[29.9391,46.4941],[29.9535,46.4965],[29.959,46.5093],[29.9583,46.4908],[29.9748,46.5008],[29.9865,46.5093],[29.992,46.496],[30.0016,46.4946],[29.9906,46.4842],[30.0016,46.4714],[30.0243,46.4686],[29.9982,46.4653],[30.0023,46.4539],[30.0249,46.4544],[30.0263,46.4421],[30.0675,46.4416],[30.0558,46.4322],[30.0751,46.4241],[30.0819,46.4331],[30.095,46.426],[30.0929,46.4393],[30.1073,46.4279],[30.1142,46.4308],[30.1355,46.4175],[30.1334,46.4118],[30.1485,46.4156],[30.1534,46.4303],[30.1602,46.427],[30.1623,46.4137],[30.1053,46.3882],[30.0913,46.382],[30.0695,46.3988],[30.057,46.3999],[30.0412,46.393],[30.0249,46.3831],[29.9996,46.3897],[29.9882,46.3835],[29.9793,46.3856],[29.9393,46.4011],[29.8889,46.3727],[29.8876,46.3527],[29.8075,46.3845],[29.8248,46.3948],[29.797,46.4156],[29.7897,46.4203],[29.7771,46.4549],[29.7668,46.4535],[29.7471,46.4714],[29.7269,46.4653],[29.7407,46.4435],[29.7349,46.4362],[29.687,46.4259],[29.6768,46.4402],[29.6603,46.4355],[29.6768,46.3611],[29.6047,46.3545],[29.6006,46.3626],[29.5793,46.3611],[29.5689,46.4076],[29.5591,46.4181],[29.5178,46.4195],[29.4949,46.4293],[29.4805,46.4394],[29.4805,46.4423],[29.5069,46.4584],[29.4461,46.497],[29.3869,46.4485],[29.3961,46.4271],[29.3938,46.4262],[29.3739,46.4561],[29.3767,46.4611],[29.3745,46.4696],[29.3507,46.5039],[29.3324,46.4958],[29.3382,46.4824],[29.3337,46.4782],[29.3362,46.4728],[29.309,46.4645],[29.3173,46.4496],[29.3057,46.4457],[29.3193,46.4144],[29.3033,46.4099],[29.2957,46.4166],[29.2648,46.4052],[29.2662,46.3948],[29.2429,46.3763],[29.2065,46.3872],[29.2456,46.4175],[29.2321,46.4364],[29.2312,46.4601],[29.2209,46.4643],[29.258,46.4866],[29.2497,46.5008],[29.2387,46.5008],[29.2353,46.5593],[29.1611,46.5437],[29.1639,46.5164],[29.063,46.5112],[29.0417,46.506],[29.0355,46.4937],[28.9806,46.4885],[28.9826,46.4781],[29.0259,46.479],[29.0245,46.4639],[28.9325,46.4591],[28.9895,46.3427],[28.9998,46.3166],[28.9861,46.318],[28.9497,46.2611],[29.0657,46.1955],[28.9524,46.0947],[29.0073,46.0485],[28.9792,46.0046],[28.7787,45.9702],[28.7787,45.9612],[28.7588,45.9564],[28.7636,45.9311],[28.7574,45.9268],[28.7842,45.8326],[28.6956,45.8183],[28.7093,45.7795],[28.6249,45.7661],[28.5796,45.7718],[28.596,45.7373],[28.5837,45.7292],[28.5658,45.7263],[28.5576,45.7359],[28.5342,45.733],[28.5205,45.7373],[28.5054,45.6999],[28.4786,45.6822],[28.4855,45.6611],[28.515,45.6644],[28.5445,45.5809],[28.4917,45.5708],[28.515,45.5006],[28.4271,45.4866],[28.4271,45.5251],[28.4155,45.5165],[28.3063,45.5468],[28.2555,45.516],[28.2269,45.4846],[28.2075,45.4689],[28.2143,45.4669],[28.2719,45.451],[28.2919,45.4293],[28.2877,45.4038],[28.3015,45.3748],[28.3255,45.3425],[28.353,45.3193],[28.5493,45.2565],[28.5823,45.2478],[28.6647,45.2411],[28.7073,45.2236],[28.7952,45.2401],[28.7856,45.2565],[28.7622,45.2623],[28.7526,45.2845],[28.7965,45.2932],[28.8062,45.3106],[28.7828,45.3242],[28.8103,45.3357],[28.8432,45.3135],[28.8734,45.3164],[28.9215,45.2826],[28.9558,45.2807],[28.9462,45.3097],[28.9723,45.3338],[29.0341,45.3579],[29.1371,45.3821],[29.1742,45.4023],[29.2072,45.4226],[29.2456,45.4312],[29.2813,45.4283],[29.3225,45.4466],[29.361,45.4332],[29.4255,45.4428],[29.4763,45.4245],[29.545,45.41],[29.5889,45.3869],[29.6521,45.3367],[29.6809,45.272],[29.6631,45.2536],[29.6741,45.2188],[29.6906,45.1985],[29.7482,45.2033],[29.7922,45.2498],[29.8141,45.3406],[29.8114,45.4062],[29.8114,45.4717],[29.7537,45.5063],[29.6768,45.5006],[29.6878,45.5294],[29.8141,45.6025],[30.0558,45.7388],[30.2701,45.89],[30.4431,46.0275],[30.6216,46.1988],[30.7013,46.29],[30.7507,46.3393],[30.7892,46.4151],[30.7755,46.4625],[30.8029,46.5116],[30.9814,46.5626],[31.1957,46.5928],[31.3605,46.5891],[31.5033,46.5626],[31.5472,46.5211],[31.734,46.3716],[31.7807,46.3659],[31.7972,46.3848],[31.7532,46.4379],[31.7368,46.4681],[31.94,46.4246],[31.9922,46.4322],[32.0197,46.4],[31.9647,46.3678],[31.7587,46.3412],[31.7313,46.3033],[31.7615,46.2615],[31.8301,46.2558],[31.918,46.2558],[32.0471,46.2217],[32.1432,46.1722],[31.7203,46.2388],[31.6791,46.2786],[31.6132,46.2862],[31.5692,46.345],[31.5417,46.3943],[31.5033,46.3886],[31.4813,46.3166],[31.5665,46.2407],[31.7395,46.1912],[32.1817,46.1189],[32.5058,46.0523],[32.7393,46.016],[32.937,45.9989],[33.0716,45.9989],[33.121,46.016],[33.0276,46.0485],[32.937,46.0618],[32.7832,46.0523],[32.7036,46.0809],[32.948,46.0847],[33.0469,46.0999],[33.1595,46.1075],[33.1677,46.0751],[33.2281,46.058],[33.2391,46.0789],[33.2831,46.0599],[33.3408,46.0637],[33.4039,46.016],[33.4616,46.0179],[33.5413,46.0199],[33.5385,46.0542],[33.577,46.0485],[33.5907,46.0294],[33.5907,45.9722],[33.6044,45.9206],[33.5303,45.8766],[33.4616,45.8671],[33.3875,45.825],[33.2446,45.7733],[33.2007,45.7924],[33.1897,45.825],[33.1512,45.8192],[33.1238,45.7464],[32.8793,45.6582],[32.6898,45.5564],[32.4619,45.4563],[32.4564,45.3888],[32.4509,45.3464],[32.5415,45.3135],[32.6706,45.3],[32.7502,45.3464],[32.8848,45.3425],[32.97,45.3],[33.1238,45.1956],[33.2117,45.1588],[33.2611,45.1239],[33.3243,45.1627],[33.4122,45.1627],[33.4644,45.1394],[33.5605,45.0502],[33.588,44.889],[33.5495,44.8637],[33.5193,44.8091],[33.5358,44.6804],[33.4698,44.6276],[33.3435,44.6022],[33.4286,44.5122],[33.4918,44.4789],[33.5934,44.4593],[33.5934,44.424],[33.6951,44.371],[33.7994,44.3769],[33.9368,44.373],[34.129,44.4102],[34.173,44.4652],[34.3295,44.5239],[34.4037,44.5885],[34.4916,44.696],[34.6536,44.7682],[34.8047,44.7935],[34.953,44.813],[35.0052,44.7994],[35.0684,44.776],[35.1398,44.8091],[35.181,44.8753],[35.2689,44.9065],[35.3073,44.9434],[35.3705,44.9279],[35.4172,44.9395],[35.4007,44.9803],[35.4364,44.9881],[35.4391,45.025],[35.4089,45.0483],[35.4584,45.0832],[35.5984,45.0987],[35.7495,45.0386],[35.7907,44.9803],[35.9445,44.9862],[36.0489,45.0114],[36.2686,45.0192],[36.4087,45.0405],[36.4883,45.091],[36.4499,45.1433],[36.4499,45.2149],[36.4691,45.271],[36.5048,45.2923],[36.5076,45.327],[36.5845,45.327],[36.6422,45.3464],[36.6641,45.3888],[36.6422,45.4274],[36.5872,45.4582],[36.4746,45.4852],[36.34,45.514],[36.1835,45.4929],[36.0434,45.4582],[36.0214,45.4023],[35.9445,45.4042],[35.9033,45.4409],[35.8704,45.4948],[35.7907,45.4852],[35.6918,45.4197],[35.6891,45.3599],[35.527,45.3039],[35.3485,45.4062],[35.1892,45.5698],[35.0244,45.7484],[34.8953,45.9817],[34.8541,46.0923],[34.8541,46.1551],[34.9008,46.2045],[35.0629,46.2426],[35.1288,46.2995],[35.2139,46.3488],[35.2167,46.2995],[35.1398,46.1931],[35.0052,46.1608],[34.9475,46.0866],[34.9695,46.0485],[35.126,46.0828],[35.2194,46.1475],[35.4282,46.3886],[35.5188,46.4379],[35.6479,46.4908],[35.8484,46.6004],[35.994,46.6381],[36.1615,46.6457],[36.2082,46.6249],[36.1697,46.5759],[36.0873,46.5173],[36.0654,46.47],[36.1752,46.4757],[36.3098,46.6061],[36.3675,46.6928],[36.5927,46.7417],[36.7273,46.7568],[36.7822,46.7041],[36.7108,46.6325],[36.7438,46.6098],[36.8317,46.6702],[36.8756,46.7549],[36.9772,46.8339],[37.2519,46.9203],[37.2794,46.8977],[37.2629,46.8658],[37.2876,46.8489],[37.4634,46.9877],[37.576,47.0645],[37.7243,47.0664],[37.8973,47.0851],[37.9907,47.0757],[38.0786,47.0926],[38.0951,47.0626],[38.0676,47.0308],[38.0731,47.0121],[38.1555,47.0383],[38.2283,47.1131],[38.2365,47.2102],[38.2338,47.2289],[38.286,47.241],[38.2887,47.2569],[38.3313,47.2653],[38.3313,47.296],[38.3354,47.31],[38.2214,47.3053],[38.2283,47.3314],[38.2448,47.3574],[38.2503,47.3677],[38.2874,47.3751],[38.2997,47.3946],[38.2997,47.4754],[38.2819,47.4792],[38.2942,47.507],[38.2832,47.5422],[38.3107,47.5469],[38.3107,47.5802],[38.3478,47.5765],[38.3519,47.6145],[38.4618,47.6163],[38.4576,47.6413],[38.6197,47.645],[38.6307,47.6682],[38.6664,47.67],[38.6664,47.6987],[38.7309,47.6987],[38.7392,47.6839],[38.7735,47.6857],[38.7735,47.7319],[38.7914,47.7366],[38.7927,47.7799],[38.7872,47.7901],[38.79,47.815],[38.8271,47.8178],[38.8326,47.8482],[38.849,47.8639],[38.8971,47.8721],[38.9589,47.8712],[39.0797,47.8703],[39.11,47.8454],[39.1594,47.8491],[39.2239,47.8528],[39.2487,47.8648],[39.3887,47.8703],[39.4135,47.8288],[39.4464,47.8602],[39.4766,47.8583],[39.5288,47.8279],[39.5673,47.8344],[39.6442,47.8334],[39.7403,47.8288],[39.7623,47.8473],[39.7664,47.8703],[39.7939,47.8721],[39.798,47.9237],[39.8199,47.9596],[39.8103,47.9991],[39.7787,48.0395],[39.8859,48.0441],[39.8364,48.0652],[39.8721,48.0827],[39.8721,48.1194],[39.9037,48.1413],[39.9078,48.1762],[39.938,48.1807],[39.9435,48.2274],[40.0095,48.2238],[40.0081,48.243],[40.0218,48.2558],[39.9902,48.3179],[39.9628,48.3033],[39.9408,48.2896],[39.9174,48.2704],[39.9037,48.2978],[39.879,48.3069],[39.8392,48.3106],[39.8419,48.3334],[39.9216,48.3453],[39.9463,48.3526],[39.9353,48.3663],[39.9394,48.3873],[39.9202,48.3763],[39.9065,48.3909],[39.9174,48.3991],[39.9065,48.4073],[39.9147,48.421],[39.8886,48.442],[39.8914,48.4492],[39.8433,48.472],[39.8474,48.5039],[39.8708,48.503],[39.8543,48.5684],[39.8007,48.5902],[39.7554,48.5811],[39.7293,48.5893],[39.6716,48.5911],[39.662,48.6111],[39.695,48.6438],[39.7115,48.6628],[39.7018,48.6728],[39.7252,48.6846],[39.7087,48.7064],[39.7128,48.7236],[39.7238,48.7326],[39.7362,48.7499],[39.7279,48.7607],[39.7472,48.7716],[39.7691,48.7671],[39.776,48.7897],[39.7856,48.8005],[39.7884,48.8222],[39.7966,48.8268],[39.8021,48.843],[39.8282,48.8349],[39.9532,48.7969],[39.9765,48.7951],[40.0795,48.8701],[40.0562,48.9117],[40.0301,48.9153],[40.0081,48.9008],[39.9916,48.8674],[39.9477,48.8783],[39.9257,48.8945],[39.8529,48.8918],[39.8364,48.9044],[39.8282,48.8855],[39.809,48.9117],[39.7829,48.9153],[39.7774,48.9387],[39.7513,48.9838],[39.7266,48.9784],[39.6991,49.0018],[39.6744,48.991],[39.6689,49.0018],[39.684,49.0226],[39.6799,49.0415],[39.6936,49.0523],[39.7678,49.0406],[39.8062,49.0595],[39.8694,49.064],[39.9394,49.0568],[39.9339,49.0811],[40.0246,49.1763],[40.0781,49.1889],[40.1372,49.2391],[40.1949,49.24],[40.2319,49.2606],[40.1866,49.2848],[40.1907,49.3466],[40.1523,49.3716],[40.1001,49.4011],[40.0603,49.4404],[40.0314,49.4556],[40.0397,49.5199],[40.1701,49.5662],[40.1358,49.6169],[40.0726,49.6],[40.0342,49.6045],[39.949,49.5938],[39.9353,49.5724],[39.8872,49.5582],[39.8337,49.5671],[39.8103,49.5582],[39.7362,49.6027],[39.6565,49.6178],[39.592,49.7174],[39.6085,49.7316],[39.4409,49.7582],[39.375,49.7405],[39.2487,49.7742],[39.1937,49.8929],[39.0701,49.822],[38.9438,49.8043],[38.8916,49.8344],[38.9108,49.8628],[38.812,49.8752],[38.7131,49.9247],[38.6829,49.9618],[38.7296,49.9883],[38.6884,50.0077],[38.6526,49.953],[38.5703,49.9742],[38.5181,49.9618],[38.4549,49.9989],[38.4082,49.9848],[38.367,50.0077],[38.3121,50.0942],[38.2599,50.0712],[38.1802,50.0818],[38.1885,50.0148],[38.2214,49.976],[38.15,49.9353],[38.0896,49.9335],[38.0264,49.9052],[38.0319,49.9406],[37.9468,50.0042],[37.8809,50.0624],[37.7463,50.0836],[37.6254,50.1927],[37.6309,50.3157],[37.576,50.3104],[37.4744,50.37],[37.4661,50.4295],[37.4963,50.4593],[37.392,50.4295],[37.3206,50.4348],[37.2821,50.3928],[37.1228,50.3525],[36.9278,50.349],[36.8372,50.3227],[36.6888,50.263],[36.6531,50.2209],[36.5625,50.249],[36.5872,50.2806],[36.5158,50.2928],[36.4828,50.3104],[36.4499,50.3104],[36.4334,50.3314],[36.3757,50.2946],[36.3153,50.2893],[36.2769,50.3227],[36.2851,50.3455],[36.1945,50.3998],[36.145,50.44],[36.0571,50.4488],[35.9363,50.4313],[35.8868,50.4383],[35.8566,50.4225],[35.8264,50.4278],[35.7935,50.391],[35.7385,50.3542],[35.6177,50.3542],[35.5902,50.3963],[35.5765,50.4575],[35.5078,50.4785],[35.4337,50.5326],[35.4227,50.5693],[35.376,50.5797],[35.4309,50.6076],[35.3925,50.6616],[35.4831,50.6599],[35.4968,50.6843],[35.4694,50.693],[35.4831,50.7816],[35.4446,50.7851],[35.4199,50.8077],[35.4227,50.8545],[35.3787,50.8736],[35.3952,50.9117],[35.3403,50.9394],[35.343,50.974],[35.3183,51.0138],[35.3979,51.0224],[35.4089,51.0518],[35.321,51.0811],[35.2689,51.0604],[35.2057,51.05],[35.1535,51.0863],[35.1755,51.1018],[35.1425,51.138],[35.1205,51.1725],[35.1425,51.2206],[35.0766,51.2292],[35.0436,51.2069],[34.9997,51.231],[34.964,51.2292],[34.8706,51.188],[34.7964,51.1759],[34.6893,51.188],[34.6619,51.2103],[34.6591,51.2378],[34.6124,51.2533],[34.5712,51.2361],[34.5328,51.2516],[34.4916,51.2413],[34.39,51.2739],[34.313,51.2361],[34.2279,51.2757],[34.2526,51.298],[34.3021,51.3306],[34.335,51.3666],[34.2911,51.3855],[34.2334,51.4078],[34.2252,51.43],[34.2636,51.4506],[34.2966,51.519],[34.2581,51.5446],[34.2499,51.5805],[34.2142,51.5873],[34.1922,51.6027],[34.1702,51.6402],[34.1208,51.6521],[34.0878,51.6674],[34.1592,51.6913],[34.2993,51.71],[34.379,51.7219],[34.4312,51.7304],[34.4449,51.7593],[34.4119,51.778],[34.4202,51.8256],[34.3103,51.8799],[34.2499,51.8833],[34.2526,51.9189],[34.1895,51.9493],[34.1977,51.973],[34.1318,51.968],[34.1345,52.0069],[34.1071,52.0069],[34.0988,52.0491],[34.0714,52.066],[34.1016,52.0896],[34.0961,52.1065],[34.118,52.1369],[34.0631,52.1722],[34.0631,52.1941],[34.0027,52.2076],[33.9917,52.2312],[33.9587,52.248],[33.934,52.2866],[33.9038,52.3068],[33.8544,52.3152],[33.8406,52.3437],[33.8242,52.3622],[33.7637,52.3639],[33.6649,52.3421],[33.5825,52.3219],[33.5522,52.3219],[33.5577,52.3001],[33.4973,52.3152],[33.522,52.3504],[33.4589,52.3588],[33.4451,52.3437],[33.4012,52.3655],[33.3325,52.3504],[33.1924,52.3739]]],"type":"Polygon"}}]};
+const FRONT_LINES = [
+    [[32.4377,46.5034],[32.4891,46.5274],[32.5319,46.5369],[32.5823,46.5551],[32.6665,46.5825],[32.6918,46.6013],[32.72,46.6318],[32.7511,46.6303],[32.7844,46.628],[32.8336,46.6549],[32.8701,46.6825],[32.9053,46.7113],[32.9542,46.7115],[33.0196,46.7177],[33.0622,46.7323],[33.104,46.7475],[33.1533,46.7628],[33.1979,46.7675],[33.2399,46.7635],[33.2863,46.7494],[33.3402,46.757],[33.3716,46.7757],[33.4029,46.7736],[33.4703,46.821],[33.5635,46.8182],[33.6203,46.829],[33.6338,46.8995],[33.6784,46.9009],[33.6956,46.9554],[33.6977,46.9951],[33.8023,47.059],[33.8408,47.0985],[33.85,47.1378],[33.9031,47.16],[33.9298,47.1772],[33.9679,47.2113],[34.0422,47.4104],[34.1183,47.4206],[34.1993,47.4121],[34.2697,47.4395],[34.3349,47.447],[34.3741,47.5072],[34.4052,47.5008],[34.4358,47.4969],[34.5006,47.4997],[34.5331,47.5305],[34.5862,47.5218],[34.618,47.5445],[34.6802,47.5107],[34.709,47.4906],[34.7492,47.4926],[34.7923,47.4677],[34.8252,47.4648],[34.8599,47.4513],[34.8634,47.4209],[34.9354,47.3916],[34.9687,47.3892],[35.0288,47.4181],[35.1022,47.451],[35.1487,47.4457],[35.2026,47.445],[35.2644,47.4739],[35.2994,47.511],[35.3319,47.5471],[35.3765,47.5792],[35.3973,47.5403],[35.4491,47.5424],[35.5045,47.5442],[35.5362,47.5462],[35.5719,47.5386],[35.6131,47.5043],[35.6547,47.501],[35.6871,47.5098],[35.7316,47.4907],[35.7823,47.4857],[35.8421,47.471],[35.8961,47.466],[35.9326,47.4935],[35.968,47.5176],[36.0208,47.5159],[36.0652,47.5268],[36.0817,47.5706],[36.1085,47.5848],[36.1404,47.6332],[36.1828,47.6331],[36.1661,47.6746],[36.1423,47.702],[36.1901,47.7198],[36.195,47.7535],[36.2351,47.7876],[36.2714,47.7863],[36.3058,47.7914],[36.3481,47.8057],[36.4256,47.8098],[36.491,47.8304],[36.5257,47.8411],[36.5722,47.8491],[36.589,47.874],[36.6289,47.9037],[36.6362,47.9393],[36.7322,47.9607],[36.7355,48.0092],[36.7647,48.055],[36.8058,48.0595],[36.8634,48.082],[36.8932,48.0874],[36.9122,48.1297],[36.907,48.1647],[36.9359,48.186],[36.9272,48.2201],[36.971,48.2384],[37.0031,48.2609],[37.0384,48.2444],[37.1035,48.287],[37.062,48.3178],[37.0859,48.3578],[37.123,48.3565],[37.1805,48.3542],[37.2047,48.3977],[37.2406,48.4038],[37.219,48.4298],[37.2693,48.4571],[37.3184,48.4739],[37.3649,48.4778],[37.4167,48.4949],[37.466,48.4792],[37.5089,48.4448],[37.587,48.4441],[37.6385,48.4506],[37.6151,48.4935],[37.6425,48.5077],[37.6863,48.4965],[37.7162,48.4844],[37.78,48.4917],[37.7451,48.5236],[37.7703,48.5436],[37.8224,48.5461],[37.8144,48.5882],[37.7618,48.6025],[37.7907,48.646],[37.7866,48.6908],[37.7985,48.7219],[37.8442,48.7045],[37.8271,48.7469],[37.8585,48.7566],[37.8947,48.7718],[37.9204,48.7951],[37.9279,48.839],[37.8598,48.8198],[37.8956,48.8514],[37.9269,48.8854],[37.9549,48.9297],[37.8816,48.93],[37.9247,48.966],[37.967,48.9698],[37.9564,49.0092],[37.9681,49.061],[37.9356,49.0734],[37.9009,49.081],[37.8695,49.0712],[37.84,49.0785],[37.7836,49.0711],[37.7474,49.0632],[37.7217,49.0884],[37.684,49.0943],[37.6886,49.1282],[37.7473,49.1297],[37.7645,49.1632],[37.806,49.1808],[37.8392,49.1861],[37.8839,49.1928],[37.9187,49.2268],[37.9565,49.2403],[37.9979,49.2521],[38.0088,49.288],[37.962,49.3033],[37.9418,49.3388],[37.9385,49.3792],[37.8906,49.3821],[37.83,49.4012],[37.7689,49.4053],[37.7115,49.4171],[37.7433,49.4599],[37.7435,49.4911],[37.7133,49.5135],[37.7018,49.5529],[37.7318,49.5572],[37.7722,49.5749],[37.803,49.6032],[37.7782,49.6427],[37.7286,49.6514],[37.7674,49.6672],[37.7769,49.7327],[37.7193,49.737],[37.6854,49.7477],[37.6381,49.7739],[37.6001,49.8093],[37.6669,49.8388],[37.6496,49.8908],[37.6966,49.8903],[37.7329,49.9005],[37.775,49.9215],[37.7349,49.956],[37.776,49.9821],[37.7649,50.039],[37.7416,50.0692],[37.699,50.0934],[37.6621,50.108],[37.6365,50.1403],[37.6035,50.1485],[37.6391,50.1787],[37.6848,50.146],[37.7263,50.1067],[37.7976,50.0842],[37.8554,50.0576],[37.9267,50.0343],[37.9658,49.9793],[37.9991,49.9636],[38.0437,49.9329],[38.0328,49.9001],[38.0565,49.9232],[38.125,49.9426],[38.1716,49.9419],[38.1963,49.9698],[38.1858,50.0226],[38.1786,50.08],[38.2757,50.0731],[38.3294,50.0855],[38.3512,50.0347],[38.3976,49.9906],[38.4341,50.001],[38.468,49.9952],[38.4877,49.9636],[38.5816,49.9774],[38.6161,49.9744],[38.6462,49.9559],[38.6761,49.9928],[38.7151,49.9877],[38.6853,49.9603],[38.7232,49.927],[38.7682,49.896],[38.832,49.8767],[38.8694,49.8645],[38.9186,49.8579],[38.9191,49.8147],[38.9711,49.8072],[39.0257,49.8225],[39.0662,49.8153],[39.1104,49.8378],[39.1307,49.8616],[39.1784,49.888],[39.2257,49.8402],[39.2504,49.7778],[39.2755,49.768]]
+  ];
+const FRONT_DATE = "27 серпня 2026 (дані DeepState)";
+
+/* ══ ПІДПИСИ, ЯКІ ВИ РЕДАГУЄТЕ ВРУЧНУ ══════════════════════════════
+   DATA_DATE — станом на коли зібрані дані про керівництво міст.
+   CREDITS   — авторство: хто зібрав дані, організація, посилання.
+                Порожній рядок = блок не показується. Можна з HTML:
+                CREDITS = 'Дані: Ім\'я Прізвище, <a href="https://...">Організація</a>';
+   ═══════════════════════════════════════════════════════════════════ */
+const DATA_DATE = "травень 2026";
+const CREDITS   = "Костянтин Донченко";
+
+const STATUS = {
+  mayor:{color:'#12a17d',label:'Міський голова',role:'Міський голова'},
+  acting:{color:'#e08a12',label:'В.о.',role:'В.о.'},
+  va:{color:'#8a52a3',label:'Військова адміністрація',role:'Військова адміністрація'},
+  // немає ні обраного голови, ні секретаря, ні призначеного в.о.
+  none:{color:'#2b3138',label:'Немає голови та секретаря',role:'—'}
+};
+const YEAR_NOW=2026;
+function sc(s){return STATUS[s].color;}
+
+/* Нормалізація: «секретар керує» і «в.о.» — це один статус В.о.
+   Зберігаємо, хто саме виконує обов'язки (секретар чи призначений в.о.). */
+CITIES.forEach(c=>{
+  if(c.status==='secretary'){
+    c.status='acting';
+    if(!c.acting){
+      c.acting={
+        name:(c.secretary&&c.secretary.name)||'',
+        party:(c.secretary&&c.secretary.party)||'',
+        kind:'secretary'   // виконує обов'язки як секретар ради
+      };
+    }else if(!c.acting.kind){ c.acting.kind='acting'; }
+  }else if(c.status==='acting' && c.acting && !c.acting.kind){
+    c.acting.kind='acting';
+  }
+});
+
+/* Окрема категорія: у місті немає ні голови, ні секретаря, ні в.о.
+   Визначається з самих даних, тож cities.js перегенеровувати не треба.
+   Міста з військовою адміністрацією сюди не потрапляють — там керівник є. */
+CITIES.forEach(c=>{
+  if(c.status==='va') return;
+  const hasMayor  = !!(c.mayor     && c.mayor.name);
+  const hasActing = !!(c.acting    && c.acting.name);
+  const hasSec    = !!(c.secretary && c.secretary.name);
+  // конвертер уже ставить 'none'; це страховка для старих cities.js
+  if(!hasMayor && !hasActing && !hasSec) c.status='none';
+});
+
+/* лічильники */
+const counts={mayor:0,acting:0,va:0,none:0};
+CITIES.forEach(c=>counts[c.status]++);
+for(const k in counts){const el=document.getElementById('n-'+k); if(el) el.textContent=counts[k];}
+
+const active={mayor:true,acting:true,va:true,none:true};
+
+/* Активний керівник міста (хто зараз керує) — для фільтрів і розміру */
+function activeLeader(c){
+  if(c.status==='mayor') return c.mayor||null;
+  if(c.status==='acting') return c.acting||null;
+  return null; // ВА — особи-керівника немає
+}
+function leaderAge(c){const l=activeLeader(c);return l&&l.born?(YEAR_NOW-l.born):null;}
+function leaderTenure(c){const l=activeLeader(c);return l&&l.years?l.years:null;}
+function leaderParty(c){const l=activeLeader(c);return l&&l.party&&l.party!=='нема'?l.party:null;}
+function leaderSex(c){const l=activeLeader(c);return l&&l.sex?l.sex:null;}
+/* УВАГА: mayorParty — це партія ОБРАНОГО у 2020 голови, навіть якщо він уже
+   не при владі. Використовується лише для показу в картці («Останній обраний
+   голова»). Для фільтрів і статистики беріть leaderParty — партію чинного
+   керівника, інакше місто рахується за партією того, кого там уже немає. */
+function mayorParty(c){return c.mayor&&c.mayor.party&&c.mayor.party!=='нема'?c.mayor.party:null;}
+function secParty(c){return c.secretary&&c.secretary.party&&c.secretary.party!=='нема'?c.secretary.party:null;}
+
+function toGeo(){
+  return {type:'FeatureCollection',features:CITIES.map((c,i)=>({
+    type:'Feature',id:i,
+    properties:{
+      city:c.city,pop:c.pop,status:c.status,color:sc(c.status),idx:i,
+      spop:Math.sqrt(c.pop||0),
+      lage:leaderAge(c)||0, ltenure:leaderTenure(c)||0,
+      noage:leaderAge(c)?0:1, noten:leaderTenure(c)?0:1
+    },
+    geometry:{type:'Point',coordinates:[c.lon,c.lat]}
+  }))};
+}
+
+/* хто керує зараз — короткий рядок */
+function leadNow(c){
+  const m=c.mayor,a=c.acting;
+  if(c.status==='mayor') return {role:'Міський голова', name:(m&&m.name)||'—'};
+  if(c.status==='acting') return {role:'В.о.', name:(a&&a.name)||'—'};
+  if(c.status==='va') return {role:'Військова адміністрація', name:''};
+  return {role:'—',name:'—'};
+}
+
+/* ---- карта: світлий стиль (базовий) ---- */
+const STYLES={
+  light:'https://tiles.openfreemap.org/styles/positron',
+  dark:'https://tiles.openfreemap.org/styles/dark'
+};
+const map=new maplibregl.Map({
+  container:'map',
+  style:STYLES.light,
+  center:[31.3,48.9],zoom:5.1,minZoom:4,maxZoom:14,
+  attributionControl:false
+});
+map.addControl(new maplibregl.NavigationControl({showCompass:false}),'top-right');
+map.addControl(new maplibregl.AttributionControl({compact:true}));
+
+function frontGeo(){
+  return {type:'FeatureCollection',features:FRONT_LINES.map(l=>({
+    type:'Feature',properties:{},geometry:{type:'LineString',coordinates:l}}))};
+}
+
+function addLayers(){
+  if(map.getSource('cities')) return;
+  const T=themeColors();
+
+  // фронт
+  map.addSource('front',{type:'geojson',data:frontGeo()});
+  map.addLayer({id:'front-halo',type:'line',source:'front',
+    layout:{'line-cap':'round','line-join':'round'},
+    paint:{'line-color':T.frontHalo,'line-width':6,'line-opacity':0.5,'line-blur':1.2}});
+  map.addLayer({id:'front-line',type:'line',source:'front',
+    layout:{'line-cap':'round','line-join':'round'},
+    paint:{'line-color':T.front,'line-width':['interpolate',['linear'],['zoom'],4,2.2,8,3.6],
+      'line-opacity':0.95,'line-dasharray':[2,1.4]}});
+
+  // кордон України — чіткий контур із гало для контрасту на будь-якій темі
+  map.addSource('ua-border',{type:'geojson',data:UA_BORDER});
+  map.addLayer({id:'ua-border-halo',type:'line',source:'ua-border',
+    layout:{'line-cap':'round','line-join':'round'},
+    paint:{'line-color':T.borderHalo,'line-width':['interpolate',['linear'],['zoom'],4,3.5,8,5.5],'line-opacity':0.5,'line-blur':1.5}});
+  map.addLayer({id:'ua-border-line',type:'line',source:'ua-border',
+    layout:{'line-cap':'round','line-join':'round'},
+    paint:{'line-color':T.borderLine,'line-width':['interpolate',['linear'],['zoom'],4,1.6,8,2.6],'line-opacity':0.95}});
+
+  // міста
+  map.addSource('cities',{type:'geojson',data:toGeo()});
+  map.addLayer({id:'glow',type:'circle',source:'cities',paint:{
+    'circle-color':['get','color'],'circle-blur':1,
+    'circle-opacity':0.28,
+    'circle-radius':radiusExpr(true)
+  }});
+  map.addLayer({id:'pts',type:'circle',source:'cities',paint:{
+    'circle-color':['get','color'],
+    'circle-stroke-color':T.ptStroke,'circle-stroke-width':1.5,
+    'circle-radius':radiusExpr(false),
+    'circle-opacity':0.96
+  }});
+
+  localizeLabels();
+  wireEvents();
+  applyFilter();
+  applySize();
+}
+map.on('load',addLayers);
+map.on('styledata',()=>{ if(map.isStyleLoaded() && !map.getSource('cities')) addLayers(); });
+
+/* кольори шарів (світла тема) */
+function themeColors(){
+  return {frontHalo:'#ffffff',front:'#d92b20',borderHalo:'#ffffff',borderLine:'#3d5a80',ptStroke:'#ffffff',labelColor:'#1a2634',labelHalo:'#ffffff'};
+}
+
+/* двомовні підписи укр / eng */
+function localizeLabels(){
+  const T=themeColors();
+  const layers=map.getStyle().layers||[];
+  const expr=['coalesce',
+    ['case',
+      ['all',['has','name:uk'],['has','name:en'],['!',['==',['get','name:uk'],['get','name:en']]]],
+      ['concat',['get','name:uk'],'\n',['get','name:en']],
+      ['coalesce',['get','name:uk'],['get','name:en'],['get','name']]]];
+  layers.forEach(l=>{
+    if(l.type==='symbol'&&l.layout&&l.layout['text-field']!==undefined){
+      try{map.setLayoutProperty(l.id,'text-field',expr);}catch(e){}
+      try{map.setPaintProperty(l.id,'text-halo-color',T.labelHalo);}catch(e){}
+      try{map.setPaintProperty(l.id,'text-halo-width',1.4);}catch(e){}
+      try{map.setPaintProperty(l.id,'text-color',T.labelColor);}catch(e){}
+    }
+  });
+}
+
+/* ---- попапи ---- */
+let hoverPop=new maplibregl.Popup({closeButton:false,closeOnClick:false,offset:12,className:'hoverpop'});
+let clickPop=new maplibregl.Popup({closeButton:true,closeOnClick:true,offset:12,maxWidth:'320px'});
+let openIdx=null;
+
+function basicHTML(c){
+  const st=STATUS[c.status];const col=sc(c.status);const L=leadNow(c);
+  let leadLine='';
+  if(c.status==='acting' && L.name){
+    leadLine=`<div class="pc-lead"><b>${L.name}</b><br><span class="pc-role">виконує обов'язки</span></div>`;
+  }else if(L.name){
+    leadLine=`<div class="pc-lead"><span class="pc-role">${L.role}</span><br><b>${L.name}</b></div>`;
+  }else{
+    leadLine=`<div class="pc-lead"><span class="pc-role">${L.role}</span></div>`;
+  }
+  return `<div class="pc"><div class="pc-strip" style="background:${col}"></div><div class="pc-basic">
+    <div class="pc-city">${c.city}</div>
+    <div class="pc-reg">${c.region} обл. · ${c.district} р-н</div>
+    <div class="pc-status" style="background:${col}22;color:${col}"><span class="d" style="background:${col}"></span>${st.label}</div>
+    ${leadLine}
+    <div class="pc-hint">Клік — детальніше ▾</div>
+  </div></div>`;
+}
+
+/* Роки пишемо словом. duration: «1 рік / 3 роки / 16 років»; yearOf: «2022 року». */
+function years(n){
+  if(n===null||n===undefined||n==='') return '';
+  const a=Math.abs(n), d=a%10, h=a%100;
+  let w='років';
+  if(d===1&&h!==11) w='рік';
+  else if(d>=2&&d<=4&&(h<12||h>14)) w='роки';
+  return `${n} ${w}`;
+}
+function yearOf(n){return n?`${n} року`:'';}
+function initials(n){if(!n)return'—';const p=n.split(/\s+/);return((p[0]||'')[0]||'')+((p[1]||'')[0]||'');}
+function age(b){return b?(YEAR_NOW-b):null;}
+
+/* ══ КОЛЬОРИ ПАРТІЙ ═══════════════════════════════════════════════
+   Назви партій у даних записані по-різному («Слуга народу», ВО «Батьківщина»,
+   «Політична партія "За майбутнє"»), тому звіряємо не точний рядок, а ключове
+   слово: досить, щоб назва МІСТИЛА одне зі слів у полі m.
+
+   Кольори орієнтовані на впізнавану айдентику партій, але це МОЄ наближення,
+   а не піпетка з офіційного лого. Хочете точний відтінок — відкрийте лого
+   партії, візьміть колір піпеткою і замініть hex тут.
+   ══════════════════════════════════════════════════════════════════ */
+const PARTY_COLORS=[
+  {m:["слуга народу"],                       c:"#2f9e44"},  // зелений
+  {m:["європейська солідарність","бпп","солідарність"], c:"#1c4e9c"},  // темно-синій
+  {m:["батьківщин"],                         c:"#d32f2f"},  // червоне серце
+  {m:["опозиційна платформа","за життя","опзж"], c:"#1f78b4"},
+  {m:["опозиційний блок"],                   c:"#0f5a8f"},
+  {m:["за майбутнє"],                        c:"#0f9b8e"},
+  {m:["наш край"],                           c:"#8e44ad"},
+  {m:["пропозиція"],                         c:"#e06c1f"},
+  {m:["удар"],                               c:"#a01c1c"},
+  {m:["свобода"],                            c:"#1b3f8b"},
+  {m:["сила і честь"],                       c:"#6b4f9e"},
+  {m:["українська стратегія","гройсман"],    c:"#e67e22"},
+  {m:["довіряй ділам"],                      c:"#c99a12"},
+  {m:["самовисув","безпартій"],              c:"#6b7a8f"}   // не партія — окремий сірий
+];
+const PARTY_NEUTRAL="#94a3b8";
+function partyKey(name){
+  return String(name||'').toLowerCase()
+    .replace(/[«»"'`]/g,' ').replace(/\s+/g,' ').trim();
+}
+function partyColor(name){
+  if(!name||name==='нема') return null;
+  const k=partyKey(name);
+  for(const p of PARTY_COLORS){ if(p.m.some(w=>k.includes(w))) return p.c; }
+  return PARTY_NEUTRAL;
+}
+function partyChip(name,label){
+  if(!name||name==='нема') return '';
+  const col=partyColor(name);
+  return `<div class="party-wrap">
+    ${label?`<div class="party-label">${label}</div>`:''}
+    <span class="party-chip" style="--pc:${col}"><span class="party-swatch"></span>${name}</span>
+  </div>`;
+}
+
+/* Три компактні показники замість списку «ключ — значення» */
+function metrics(items){
+  const list=items.filter(Boolean);
+  if(!list.length) return '';
+  return `<div class="mrow" style="grid-template-columns:repeat(${list.length},1fr)">`+
+    list.map(([v,l])=>`<div class="mcell"><div class="mv">${v}</div><div class="ml">${l}</div></div>`).join('')+
+    `</div>`;
+}
+function secRow(p){
+  if(!p||!p.name) return '';
+  return `<div class="sec-row">
+    <div class="sec-b"><div class="sn">${p.name}</div>
+      ${p.sex?`<div class="sp">${p.sex}</div>`:''}</div>
+  </div>`+partyChip(p.party,'Партія, від якої обраний (2020)');
+}
+
+function detailHTML(c){
+  const st=STATUS[c.status];const col=sc(c.status);
+  const m=c.mayor,s=c.secretary,a=c.acting,va=c.va;
+  let h=`<div class="pc"><div class="pc-strip" style="background:${col}"></div><div class="pc-basic">
+    <div class="pc-city">${c.city}</div>
+    <div class="pc-reg">${c.region} обл. · ${c.district} р-н</div>
+    <div class="pc-status" style="background:${col}22;color:${col}"><span class="d" style="background:${col}"></span>${st.label}</div>
+  </div><div class="pc-det">
+    <div class="pc-pop">Населення: ${Number(c.pop).toLocaleString('uk-UA')} (2020 рік)</div>`;
+
+  // ---- Блок голови / в.о. ----
+  if(c.status==='none'){
+    h+=`<div class="blk"><div class="va-box" style="border-color:${col};background:${col}1f">
+      <div class="va-t" style="color:${col}">Немає голови та секретаря</div>
+      <div class="va-x">У місті немає ні обраного міського голови, ні секретаря ради,
+        ні призначеного виконувача обов'язків.</div></div></div>`;
+    if(m&&m.name){
+      h+=`<div class="blk"><div class="h">Останній обраний голова</div>
+        <div class="lead-name" style="font-size:14px">${m.name}</div>
+        ${partyChip(m.party,'Партія, від якої обраний (2020)')}`;
+      h+=metrics([
+        m.firstElected?[yearOf(m.firstElected),'Вперше обраний']:null,
+        m.years?[years(m.years),'Пробув на посаді']:null
+      ]);
+      h+=`</div>`;
+    }
+  }
+  else if(c.status==='va'){
+    h+=`<div class="blk"><div class="va-box"><div class="va-t">Військова адміністрація</div>
+      <div class="va-x">Міського голови немає — містом керує військова адміністрація${va&&va.since?` з ${yearOf(va.since)}`:''}.</div></div></div>`;
+    if(m&&m.name){
+      h+=`<div class="blk"><div class="h">Останній обраний голова</div>
+        <div class="lead-name" style="font-size:14px">${m.name}</div>
+        ${partyChip(m.party,'Партія, від якої обраний (2020)')}`;
+      h+=metrics([
+        m.firstElected?[yearOf(m.firstElected),'Вперше обраний']:null,
+        m.years?[years(m.years),'Пробув на посаді']:null
+      ]);
+      h+=`</div>`;
+    }
+  }
+  else if(c.status==='acting'){
+    // Немає обраного голови — керує в.о.
+    const who = a&&a.name ? a.name : '—';
+    const asSecretary = a && a.kind==='secretary';
+    h+=`<div class="blk"><div class="h">Виконувач обов'язків</div>
+      <div class="lead-note" style="margin-top:0;margin-bottom:8px">Обраного міського голови немає.</div>
+      <div class="lead-name">${who}</div>
+      <div class="lead-note">${asSecretary?'Секретар ради виконує обов\'язки міського голови':'Виконувач обов\'язків міського голови'}${a&&a.sex?` · ${a.sex}`:''}</div>
+      ${(a&&a.party)?partyChip(a.party,'Партія'):''}`;
+    h+=metrics([
+      a&&a.since?[yearOf(a.since),'Виконує з']:null,
+      a&&a.years?[years(a.years),'Тривалість']:null
+    ]);
+    h+=`</div>`;
+  }
+  else if(c.status==='mayor'){
+    // Є обраний голова
+    h+=`<div class="blk"><div class="h">Міський голова</div>
+      <div class="lead-name">${m&&m.name?m.name:'—'}</div>`;
+    if(m&&(m.born||m.sex)){
+      const bornTx=m.born?`${m.sex==='жінка'?'Народилася':'Народився'} ${yearOf(m.born)}`:'';
+      h+=`<div class="lead-note" style="margin-top:5px">${[bornTx,m.sex].filter(Boolean).join(' · ')}</div>`;
+    }
+    h+= m?partyChip(m.party,'Партія, від якої обраний (2020)'):'';
+    if(m) h+=metrics([
+      m.born?[years(age(m.born)),'Вік']:null,
+      m.years?[years(m.years),'Стаж']:null,
+      m.firstElected?[yearOf(m.firstElected),'Вперше обраний']:null
+    ]);
+    h+=`</div>`;
+  }
+
+  // ---- Блок секретаря ----
+  // Не показуємо лише тоді, коли секретар і є виконувачем обов'язків:
+  // у такому разі він уже описаний вище і повторювати його зайве.
+  const secShown = !(c.status==='acting' && a && a.kind==='secretary');
+  if((c.status==='mayor'||c.status==='acting') && secShown){
+    h+=`<div class="blk"><div class="h">Секретар ради</div>`;
+    h+= (s&&s.name) ? secRow(s) : `<div class="none">Секретаря немає.</div>`;
+    h+=`</div>`;
+  }
+
+  h+=`<div class="pc-foot">Дані про керівництво — станом на ${DATA_DATE}.${CREDITS?' '+CREDITS:''}</div>`;
+  h+=`</div></div>`;
+  return h;
+}
+
+function wireEvents(){
+  map.on('mouseenter','pts',e=>{
+    map.getCanvas().style.cursor='pointer';
+    if(openIdx!==null) return; // не заважати відкритим деталям
+    const idx=e.features[0].properties.idx;
+    hoverPop.setLngLat(CITIES[idx]?[CITIES[idx].lon,CITIES[idx].lat]:e.lngLat)
+      .setHTML(basicHTML(CITIES[idx])).addTo(map);
+  });
+  map.on('mouseleave','pts',()=>{map.getCanvas().style.cursor='';hoverPop.remove();});
+  map.on('click','pts',e=>{ openDetail(e.features[0].properties.idx); });
+  map.on('click',ev=>{ /* клік по порожньому — деталі самі закриються (closeOnClick) */ });
+  clickPop.on('close',()=>{ openIdx=null; markSel(null); });
+}
+
+function openDetail(idx){
+  hoverPop.remove();
+  openIdx=idx;
+  const c=CITIES[idx];
+  clickPop.setMaxWidth(Math.min(340, window.innerWidth-28)+'px');
+  clickPop.setLngLat([c.lon,c.lat]).setHTML(detailHTML(c)).addTo(map);
+  markSel(idx);
+  const isMobile=window.matchMedia('(max-width:820px)').matches;
+  map.flyTo({center:[c.lon,c.lat],zoom:Math.max(map.getZoom(),7.5),speed:.7,
+    padding:isMobile?{bottom:180}:{left:340}});
+  window.dispatchEvent(new Event('citySelected'));
+}
+
+/* ---- фільтри ---- */
+/* ===== Розмір точки: населення / вік / стаж ===== */
+/* Розмір точки — ЗАВЖДИ населення. Вік і стаж переїхали у фільтри-гістограми:
+   порівнювати площі кіл око не вміє, а діапазон з гістограмою читається точно.
+   ['zoom'] у MapLibre дозволений лише на найвищому рівні виразу. */
+function radiusExpr(isGlow){
+  const k=isGlow?1.7:1;
+  // sqrt: 10k≈100, 50k≈224, 370k≈608, 1M≈1000, 3M≈1732
+  return ['interpolate',['linear'],['zoom'],
+    5, ['interpolate',['linear'],['get','spop'],100,3.2*k,224,5*k,608,8.5*k,1000,12*k,1732,18*k],
+    10,['interpolate',['linear'],['get','spop'],100,6*k,224,9.5*k,608,17*k,1000,24*k,1732,36*k]];
+}
+function applySize(){
+  if(map.getLayer('pts'))  map.setPaintProperty('pts','circle-radius',radiusExpr(false));
+  if(map.getLayer('glow')) map.setPaintProperty('glow','circle-radius',radiusExpr(true));
+}
+
+/* ===== Фільтри ===== */
+const POP_MAX=CITIES.reduce((m,c)=>Math.max(m,c.pop||0),0);
+const filters={partyMayor:'',partySec:'',sex:'',popMin:0,popMax:POP_MAX,
+  ageMin:0,ageMax:999,ageOn:false, tenMin:0,tenMax:999,tenOn:false};
+
+/* ══ ШКАЛА ПОВЗУНКА НАСЕЛЕННЯ ═════════════════════════════════════
+   Лінійна шкала тут марна: більшість міст — 5–50 тис., а кількасот тисяч
+   і мільйони мають одиниці. На лінійній шкалі 90% міст тиснуться в перші
+   кілька відсотків повзунка, і рухати його немає сенсу.
+
+   'quantile' — крок повзунка = однакова кількість МІСТ. Внизу шкали, де
+                міст густо, крок дає кілька тисяч населення; вгорі, де міст
+                одиниці, крок дає сотні тисяч. Рекомендовано.
+   'log'      — логарифмічна: рівні відношення, а не рівні різниці.
+   'linear'   — стара поведінка, якщо раптом знадобиться.
+   ═══════════════════════════════════════════════════════════════════ */
+const POP_SCALE='quantile';
+const POP_STEPS=200;
+const POPS_SORTED=CITIES.map(c=>c.pop||0).filter(v=>v>0).sort((a,b)=>a-b);
+
+function posToPop(t){
+  if(t<=0) return 0;                       // 0 = «без нижньої межі»
+  if(t>=POP_STEPS) return POP_MAX;
+  const f=t/POP_STEPS;
+  if(POP_SCALE==='linear' || !POPS_SORTED.length) return Math.round(f*POP_MAX);
+  if(POP_SCALE==='log'){
+    const lo=Math.max(1,POPS_SORTED[0]), hi=Math.max(lo+1,POP_MAX);
+    return Math.round(lo*Math.pow(hi/lo,f));
+  }
+  // quantile: позиція повзунка → відповідний квантиль реального розподілу
+  const idx=f*(POPS_SORTED.length-1);
+  const a=Math.floor(idx), b=Math.ceil(idx);
+  return Math.round(POPS_SORTED[a]+(POPS_SORTED[b]-POPS_SORTED[a])*(idx-a));
+}
+
+function cityPasses(c){
+  if(!active[c.status]) return false;
+  // Партія рахується ТІЛЬКИ по тому, хто керує МІСТОМ ЗАРАЗ.
+  // Якщо голову обрали від партії X, але повноважень у нього вже немає,
+  // місто не належить партії X — рахується партія виконувача обов'язків.
+  if(filters.partyMayor){ if(leaderParty(c)!==filters.partyMayor) return false; }
+  if(filters.partySec){ if(secParty(c)!==filters.partySec) return false; }
+  if(filters.sex){ if(leaderSex(c)!==filters.sex) return false; }
+  // Міста без даних (ВА, призначені в.о.) зникають, щойно повзунок зрушено.
+  // Поки діапазон повний — вони на карті.
+  if(filters.ageOn){
+    const a=leaderAge(c);
+    if(a===null || a<filters.ageMin || a>filters.ageMax) return false;
+  }
+  if(filters.tenOn){
+    const t=leaderTenure(c);
+    if(t===null || t<filters.tenMin || t>filters.tenMax) return false;
+  }
+  if((c.pop||0)<filters.popMin || (c.pop||0)>filters.popMax) return false;
+  return true;
+}
+
+function applyFilter(){
+  // збираємо дозволені idx і фільтруємо шари за idx
+  const okIdx=CITIES.map((c,i)=>cityPasses(c)?i:-1).filter(i=>i>=0);
+  const f=['in',['get','idx'],['literal',okIdx]];
+  if(map.getLayer('pts'))map.setFilter('pts',f);
+  if(map.getLayer('glow'))map.setFilter('glow',f);
+  renderList(document.getElementById('q')?document.getElementById('q').value:'');
+  if(typeof refreshFilterBadge==='function') refreshFilterBadge();
+}
+document.querySelectorAll('.tally').forEach(t=>{
+  t.addEventListener('click',()=>{const k=t.dataset.k;active[k]=!active[k];t.classList.toggle('off',!active[k]);applyFilter();});
+});
+
+/* ══ ФІЛЬТРИ-ГІСТОГРАМИ: вік керівника та стаж на посаді ═══════════
+   Межі шкали НЕ зашиті в код — рахуються з ваших даних при завантаженні.
+   Якщо у вашому cities.js стаж доходить до 34 років, а вік починається
+   з 30 — шкала буде саме такою. Порожній блок ховається сам.
+   ═══════════════════════════════════════════════════════════════════ */
+const RANGE_FILTERS=[];
+
+function makeHistFilter(cfg){
+  const box=document.getElementById(cfg.boxId);
+  if(!box) return;
+  const vals=CITIES.map(cfg.getter).filter(v=>v!==null&&v!==undefined&&!isNaN(v));
+  const missing=CITIES.length-vals.length;
+  if(vals.length<3){ box.style.display='none'; return; }   // даних замало — блок не потрібен
+
+  const MIN=Math.min(...vals), MAX=Math.max(...vals);
+  const span=(MAX-MIN)||1;
+  // ширина стовпчика підбирається так, щоб останній не вилазив далеко за
+  // реальний максимум: спершу цільова кількість стовпчиків, потім підгонка
+  const target=Math.min(cfg.bins||14, Math.max(4, MAX-MIN+1));
+  const binW=Math.max(1, Math.ceil((MAX-MIN+1)/target));
+  const BINS=Math.ceil((MAX-MIN+1)/binW);
+
+  // розподіл
+  const hist=new Array(BINS).fill(0);
+  vals.forEach(v=>{ hist[Math.min(BINS-1, Math.floor((v-MIN)/binW))]++; });
+  const peak=Math.max(...hist);
+
+  box.innerHTML=`
+    <div class="ctrl-h">${cfg.title}</div>
+    <div class="hist" id="${cfg.boxId}-hist"></div>
+    <div class="range-wrap">
+      <div class="range-track"><div class="range-fill" id="${cfg.boxId}-fill"></div></div>
+      <input type="range" id="${cfg.boxId}-min" min="${MIN}" max="${MAX}" step="1" value="${MIN}">
+      <input type="range" id="${cfg.boxId}-max" min="${MIN}" max="${MAX}" step="1" value="${MAX}">
+      <!-- шкала: ${MIN}…${MAX}, ${BINS} стовпчиків по ${binW} -->
+    </div>
+    <div class="range-vals"><span id="${cfg.boxId}-lo"></span><span id="${cfg.boxId}-hi"></span></div>
+    <div class="ctrl-note" id="${cfg.boxId}-note"></div>`;
+
+  const histEl=document.getElementById(cfg.boxId+'-hist');
+  histEl.innerHTML=hist.map((n,i)=>{
+    const a=MIN+i*binW, b=a+binW-1;
+    return `<i data-a="${a}" data-b="${b}" style="height:${peak?Math.max(2,Math.round(n/peak*100)):0}%"
+      title="${a}–${b}: ${n}"></i>`;
+  }).join('');
+
+  const loR=document.getElementById(cfg.boxId+'-min');
+  const hiR=document.getElementById(cfg.boxId+'-max');
+  const fill=document.getElementById(cfg.boxId+'-fill');
+  const loT=document.getElementById(cfg.boxId+'-lo');
+  const hiT=document.getElementById(cfg.boxId+'-hi');
+  const note=document.getElementById(cfg.boxId+'-note');
+  const bars=[...histEl.querySelectorAll('i')];
+
+  function apply(){
+    let lo=+loR.value, hi=+hiR.value;
+    if(lo>hi) [lo,hi]=[hi,lo];
+    fill.style.left=((lo-MIN)/span*100)+'%';
+    fill.style.right=(100-(hi-MIN)/span*100)+'%';
+    filters[cfg.minKey]=lo; filters[cfg.maxKey]=hi;
+    filters[cfg.activeKey]=(lo>MIN||hi<MAX);
+
+    bars.forEach(b=>b.classList.toggle('in', +b.dataset.b>=lo && +b.dataset.a<=hi));
+    loT.textContent=cfg.fmt(lo);
+    hiT.textContent=cfg.fmt(hi);
+
+    const n=vals.filter(v=>v>=lo&&v<=hi).length;
+    note.textContent = filters[cfg.activeKey]
+      ? `У діапазоні: ${n} з ${vals.length}`+(missing?` · ${missing} ${cfg.missingWord} приховано`:'')
+      : `Без обмеження`+(missing?` · ${missing} ${cfg.missingWord}`:'');
+    applyFilter();
+  }
+  loR.addEventListener('input',apply);
+  hiR.addEventListener('input',apply);
+  RANGE_FILTERS.push({reset(){ loR.value=MIN; hiR.value=MAX; apply(); }});
+  apply();
+}
+
+/* ---- кнопка «Фільтри»: згорнуто за замовчуванням, щоб було видно список міст ---- */
+const filtersBtn=document.getElementById('filtersBtn');
+const filtersBox=document.getElementById('controls');
+const filtersBadge=document.getElementById('filtersBadge');
+const filtersReset=document.getElementById('filtersReset');
+
+filtersBtn.addEventListener('click',()=>{
+  const open=filtersBox.hasAttribute('hidden');
+  if(open){ filtersBox.removeAttribute('hidden'); } else { filtersBox.setAttribute('hidden',''); }
+  filtersBtn.classList.toggle('open',open);
+  filtersBtn.setAttribute('aria-expanded',String(open));
+  const sz=document.getElementById('scrollZone');
+  if(sz) sz.scrollTop=0;   // показуємо фільтри з початку, а не середину списку
+});
+
+/* Скільки фільтрів реально щось обмежують — цифра на кнопці,
+   щоб згорнута панель не приховувала того, що вибірка вже урізана. */
+function activeFilterCount(){
+  let n=0;
+  if(filters.partyMayor) n++;
+  if(filters.partySec)   n++;
+  if(filters.sex)        n++;
+  if(filters.popMin>0 || filters.popMax<POP_MAX) n++;
+  if(filters.ageOn)      n++;
+  if(filters.tenOn)      n++;
+  for(const k in active){ if(!active[k]){ n++; break; } }
+  return n;
+}
+function refreshFilterBadge(){
+  const n=activeFilterCount();
+  if(n){ filtersBadge.hidden=false; filtersBadge.textContent=n; filtersReset.hidden=false; }
+  else { filtersBadge.hidden=true; filtersReset.hidden=true; }
+}
+
+filtersReset.addEventListener('click',()=>{
+  document.getElementById('partyMayorSel').value='';
+  document.getElementById('partySecSel').value='';
+  filters.partyMayor=''; filters.partySec=''; filters.sex='';
+  document.querySelectorAll('#sexSeg button').forEach(b=>b.classList.toggle('on',b.dataset.s===''));
+  const minR=document.getElementById('popMin'), maxR=document.getElementById('popMax');
+  minR.value=0; maxR.value=POP_STEPS; minR.dispatchEvent(new Event('input'));
+  RANGE_FILTERS.forEach(f=>f.reset());
+  for(const k in active) active[k]=true;
+  document.querySelectorAll('.tally').forEach(t=>t.classList.remove('off'));
+  applyFilter();
+});
+
+/* ---- список міст ---- */
+function renderList(filterText){
+  const q=(filterText||'').trim().toLowerCase();
+  const items=CITIES.map((c,i)=>({c,i}))
+    .filter(x=>cityPasses(x.c))
+    .filter(x=>!q||x.c.city.toLowerCase().includes(q))
+    .sort((a,b)=>b.c.pop-a.c.pop);
+  const el=document.getElementById('list');
+  el.innerHTML=items.map(x=>{
+    const col=sc(x.c.status);
+    return `<div class="row" data-i="${x.i}">
+      <span class="rdot" style="background:${col}"></span>
+      <span class="rn"><span class="rc">${x.c.city}</span><span class="rr">${x.c.region} обл.</span></span>
+      <span class="rp">${Number(x.c.pop).toLocaleString('uk-UA')}</span>
+    </div>`;
+  }).join('')||`<div style="padding:14px;color:var(--ink-faint);font-size:12px">Нічого не знайдено</div>`;
+  el.querySelectorAll('.row').forEach(r=>{
+    r.addEventListener('click',()=>openDetail(+r.dataset.i));
+  });
+  if(openIdx!==null) markSel(openIdx);
+}
+function markSel(idx){
+  document.querySelectorAll('#list .row').forEach(r=>r.classList.toggle('sel',+r.dataset.i===idx));
+}
+
+document.getElementById('q').addEventListener('input',e=>renderList(e.target.value));
+
+/* ---- заповнення двох списків партій (від найбільших до найменших) ---- */
+function fillPartySelect(selId, getParty){
+  const cnt={};
+  CITIES.forEach(c=>{const p=getParty(c); if(p) cnt[p]=(cnt[p]||0)+1;});
+  const sorted=Object.entries(cnt).sort((a,b)=>b[1]-a[1]);
+  const sel=document.getElementById(selId);
+  sorted.forEach(([name,n])=>{
+    const o=document.createElement('option');
+    o.value=name; o.textContent=`${name} (${n})`;
+    sel.appendChild(o);
+  });
+}
+makeHistFilter({boxId:'ctrlAge', title:'Вік керівника', getter:leaderAge,
+  minKey:'ageMin', maxKey:'ageMax', activeKey:'ageOn',
+  missingWord:'без даних про вік', fmt:v=>years(v)});
+makeHistFilter({boxId:'ctrlTenure', title:'Стаж на посаді', getter:leaderTenure,
+  minKey:'tenMin', maxKey:'tenMax', activeKey:'tenOn',
+  missingWord:'без даних про стаж', fmt:v=>years(v)});
+
+fillPartySelect('partyMayorSel', leaderParty);
+fillPartySelect('partySecSel', secParty);
+
+/* ---- перемикач розміру точки ---- */
+
+/* ---- фільтри партій ---- */
+document.getElementById('partyMayorSel').addEventListener('change',e=>{filters.partyMayor=e.target.value;applyFilter();});
+document.getElementById('partySecSel').addEventListener('change',e=>{filters.partySec=e.target.value;applyFilter();});
+
+/* ---- фільтр статі ---- */
+document.getElementById('sexSeg').addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  filters.sex=b.dataset.s;
+  document.querySelectorAll('#sexSeg button').forEach(x=>x.classList.toggle('on',x===b));
+  applyFilter();
+});
+
+/* ---- двобічний повзунок населення ---- */
+(function(){
+  const minR=document.getElementById('popMin'), maxR=document.getElementById('popMax');
+  const fill=document.getElementById('popFill');
+  const minVal=document.getElementById('popMinVal'), maxVal=document.getElementById('popMaxVal');
+  const cntEl=document.getElementById('popCount');
+  const fmt=n=>Number(n).toLocaleString('uk-UA');
+  const pct=v=>(v/POP_STEPS)*100;
+  function citiesWord(n){
+    const d=n%10,h=n%100;
+    if(d===1&&h!==11) return 'місто';
+    if(d>=2&&d<=4&&(h<12||h>14)) return 'міста';
+    return 'міст';
+  }
+  function update(){
+    let lo=+minR.value, hi=+maxR.value;
+    if(lo>hi){ [lo,hi]=[hi,lo]; }
+    fill.style.left=pct(lo)+'%';
+    fill.style.right=(100-pct(hi))+'%';
+    filters.popMin=posToPop(lo);
+    filters.popMax=posToPop(hi);
+    minVal.textContent=fmt(filters.popMin);
+    maxVal.textContent=fmt(filters.popMax);
+    if(cntEl){
+      const n=CITIES.filter(c=>(c.pop||0)>=filters.popMin&&(c.pop||0)<=filters.popMax).length;
+      cntEl.textContent='У діапазоні: '+n+' '+citiesWord(n);
+    }
+    applyFilter();
+  }
+  minR.addEventListener('input',update);
+  maxR.addEventListener('input',update);
+  update();
+})();
+
+renderList();
+
+/* ---- діагностика кольорів партій ----
+   У консолі браузера (F12) буде список найбільших партій, які ще не мають
+   свого кольору — щоб ви знали, які варто додати в PARTY_COLORS. */
+{
+  const grey={};
+  CITIES.forEach(c=>{
+    [leaderParty(c),secParty(c)].forEach(p=>{
+      if(p && partyColor(p)===PARTY_NEUTRAL) grey[p]=(grey[p]||0)+1;
+    });
+  });
+  const top=Object.entries(grey).sort((a,b)=>b[1]-a[1]).slice(0,15);
+  if(top.length) console.log('Партії без власного кольору (топ-15):', top);
+}
+
+/* ---- підписи у футері ---- */
+{
+  const fd=document.getElementById('footData');
+  if(fd) fd.textContent='Дані про міських голів — станом на '+DATA_DATE+'. Населення — 2020 рік.';
+  const fc=document.getElementById('footCredits');
+  if(fc && CREDITS) fc.innerHTML=CREDITS;
+}
+
+/* ---- позначка про демонстраційні дані ---- */
+if(!HAS_FULL_DATA){
+  const f=document.querySelector('.foot');
+  if(f) f.insertAdjacentHTML('afterbegin',
+    '<div style="color:var(--acting);font-weight:600;margin-bottom:7px">'+
+    'Демонстраційні дані: '+DEMO_CITIES.length+' міст. Згенеруйте cities.js — див. README.</div>');
+}
+
+/* ---- мобільна шторка (bottom sheet): тап/свайп по ручці ---- */
+(function(){
+  const panel=document.getElementById('panel');
+  const handle=document.getElementById('sheetHandle');
+  if(!handle) return;
+  let startY=null, dragging=false;
+  const isMobile=()=>window.matchMedia('(max-width:820px)').matches;
+  handle.addEventListener('click',()=>{ if(isMobile()) panel.classList.toggle('open'); });
+  handle.addEventListener('touchstart',e=>{startY=e.touches[0].clientY;dragging=true;},{passive:true});
+  handle.addEventListener('touchmove',e=>{
+    if(!dragging||startY===null) return;
+    const dy=e.touches[0].clientY-startY;
+    if(dy<-30){ panel.classList.add('open'); dragging=false; }
+    else if(dy>30){ panel.classList.remove('open'); dragging=false; }
+  },{passive:true});
+  handle.addEventListener('touchend',()=>{dragging=false;startY=null;});
+  // при виборі міста на мобільному — трохи прибрати шторку, щоб бачити карту
+  window.addEventListener('citySelected',()=>{ if(isMobile()) panel.classList.remove('open'); });
+})();
+</script>
+</body>
+</html>
