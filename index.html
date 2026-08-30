@@ -290,7 +290,8 @@
     /* уся шапка згорнутої шторки — велика зона натискання */
     #panel:not(.open) .brand{cursor:pointer}
     .foot{padding-bottom:calc(8px + env(safe-area-inset-bottom,0px))}
-    .sheet-handle{display:flex}
+    #panel .sheet-handle{display:flex}   /* специфічніше за базове display:none нижче */
+    #panel.open #sheetClose{display:flex}
     .brand{padding-top:6px}
     .legend-mini{bottom:auto;top:14px;right:14px}
     .brand{padding:6px 16px 10px}
@@ -303,11 +304,19 @@
   }
   .sheet-handle{display:none;justify-content:center;align-items:center;
     height:26px;padding:0;cursor:grab;touch-action:none}
+  /* Згорнути шторку: видима лише на мобільному і лише коли вона відкрита */
+  #sheetClose{display:none;position:absolute;top:6px;right:10px;z-index:7;
+    width:34px;height:34px;align-items:center;justify-content:center;
+    border:1px solid var(--line);border-radius:50%;background:var(--panel);
+    color:var(--ink-dim);font:inherit;font-size:17px;line-height:1;
+    cursor:pointer;box-shadow:var(--shadow)}
+  #sheetClose:active{background:var(--panel-2)}
   .sheet-handle::before{content:'';width:38px;height:4px;border-radius:3px;background:var(--line)}
 </style>
 </head>
 <body>
   <aside id="panel">
+    <button id="sheetClose" type="button" aria-label="Згорнути панель">✕</button>
     <div class="sheet-handle" id="sheetHandle"></div>
     <div class="brand">
       <div class="kicker">Civic Monitor · 2020–2026</div>
@@ -1253,6 +1262,21 @@ if(!HAS_FULL_DATA){
     else if(dy>24){ close(); dragging=false; }
   },{passive:true});
   handle.addEventListener('touchend',()=>{dragging=false;startY=null;});
+
+  // ✕ — згорнути
+  const closeBtn=document.getElementById('sheetClose');
+  if(closeBtn) closeBtn.addEventListener('click',e=>{ e.stopPropagation(); close(); });
+
+  // тап по карті теж згортає шторку
+  const mapEl=document.getElementById('map');
+  if(mapEl) mapEl.addEventListener('click',()=>{
+    if(isMobile() && panel.classList.contains('open')) close();
+  });
+
+  // Escape — на випадок зовнішньої клавіатури
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Escape' && isMobile() && panel.classList.contains('open')) close();
+  });
 
   window.addEventListener('citySelected',()=>{ if(isMobile()) close(); });
 
