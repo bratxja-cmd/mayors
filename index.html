@@ -206,6 +206,15 @@
     border:1px solid var(--line);color:var(--ink);background:var(--panel-2)}
   .lead-name{font-size:15px;font-weight:600;color:var(--ink);line-height:1.25}
   .lead-note{font-size:11.5px;color:var(--ink-dim);margin-top:8px;line-height:1.45}
+  /* Вільна примітка до блоку керівника («змінився в липні 2026») */
+  .lead-remark{font-size:11px;color:var(--ink-dim);margin-top:10px;line-height:1.45;
+    padding:7px 9px;background:var(--panel-2);border-left:2px solid var(--line);border-radius:0 6px 6px 0}
+  /* Попередник на посаді — компактний рядок під основним блоком */
+  .prev-b{margin-top:12px;padding-top:10px;border-top:1px dashed var(--line)}
+  .prev-b .pl{font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--ink-faint);font-family:'Oswald';font-weight:500}
+  .prev-b .pn{font-size:12.5px;color:var(--ink-dim);margin-top:4px}
+  .prev-b .px{font-size:10.5px;color:var(--ink-faint);margin-top:3px;line-height:1.4}
   .pc-strip{height:4px;width:100%}
   .mrow{display:grid;gap:6px;margin-top:11px}
   .mcell{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;
@@ -319,7 +328,7 @@
     <button id="sheetClose" type="button" aria-label="Згорнути панель">✕</button>
     <div class="sheet-handle" id="sheetHandle"></div>
     <div class="brand">
-      <div class="kicker">Civic Monitor · 2026</div>
+      <div class="kicker">Civic Monitor · 2020–2026</div>
       <h1>Хто керує містами</h1>
       <p>Статус місцевого самоврядування міст України.</p>
     </div>
@@ -815,10 +824,29 @@ function detailHTML(c){
       <div class="lead-name">${who}</div>
       <div class="lead-note">${asSecretary?'Секретар ради виконує обов\'язки міського голови':'Виконувач обов\'язків міського голови'}${a&&a.sex?` · ${a.sex}`:''}</div>
       ${(a&&a.party)?partyChip(a.party,'Партія'):''}`;
+    /* sinceText — необов'язкове поле для точнішої дати («липень 2026»).
+       Якщо його немає, показуємо рік із since, як раніше. */
+    const sinceTx = a&&a.sinceText ? a.sinceText : (a&&a.since ? yearOf(a.since) : null);
     h+=metrics([
-      a&&a.since?[yearOf(a.since),'Виконує з']:null,
+      sinceTx?[sinceTx,'Виконує з']:null,
       a&&a.years?[years(a.years),'Тривалість']:null
     ]);
+    /* note — вільна примітка; prev — попередник на цій посаді.
+       Обидва поля необов'язкові, за їх відсутності нічого не малюється. */
+    if(a&&a.note) h+=`<div class="lead-remark">${a.note}</div>`;
+    if(a&&a.prev&&a.prev.name){
+      const p=a.prev;
+      /* untilText пишеться як готова фраза («до липня 2026»), бо відмінок
+         місяця автоматично не підставиш. З числового until — «до 2026 року». */
+      const untilTx = p.untilText || (p.until?`до ${yearOf(p.until)}`:'');
+      const sub=[untilTx,p.sex,p.party].filter(Boolean).join(' · ');
+      h+=`<div class="prev-b">
+        <div class="pl">Попередник на посаді</div>
+        <div class="pn">${p.name}</div>
+        ${sub?`<div class="px">${sub}</div>`:''}
+        ${p.note?`<div class="px">${p.note}</div>`:''}
+      </div>`;
+    }
     h+=`</div>`;
   }
   else if(c.status==='mayor'){
