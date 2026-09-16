@@ -7,7 +7,7 @@
 <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@400;500;600&family=Spectral:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   /* ===== СВІТЛА ТЕМА ===== */
   :root{
@@ -33,9 +33,13 @@
     --border-halo:#ffffff;
     --label-color:#121212;
     --label-halo:#ffffff;
-    --f-head:'Archivo Narrow',system-ui,sans-serif;
-    --f-body:'Spectral',Georgia,serif;
-    --f-num:'IBM Plex Mono',ui-monospace,monospace;
+    /* Onest — м'який гротеск із заокругленими закінченнями штрихів,
+       добре малює кирилицю. Manrope — спокійний текстовий гротеск.
+       Моноширинного шрифта більше немає: цифри набираються Manrope
+       з табличними знаками, тож лишаються вирівняними, але не «технічними». */
+    --f-head:'Onest',system-ui,sans-serif;
+    --f-body:'Manrope',system-ui,sans-serif;
+    --f-num:'Manrope',system-ui,sans-serif;
   }
   *{box-sizing:border-box}
   /* 100vh на телефоні = висота БЕЗ адресного рядка, тому нижня частина
@@ -57,12 +61,12 @@
   .brandbar{height:7px;background:var(--brand);flex:none}
   .brand{padding:15px 18px 13px;border-bottom:1px solid var(--rule);flex:none}
   .brand .kicker{
-    font-family:var(--f-head);font-weight:600;letter-spacing:.18em;
-    text-transform:uppercase;font-size:10.5px;color:var(--ink-faint);
+    font-family:var(--f-head);font-weight:500;letter-spacing:.1em;
+    text-transform:uppercase;font-size:11px;color:var(--ink-faint);
   }
-  .brand h1{font-family:var(--f-head);font-weight:600;font-size:24px;line-height:1.05;
-    letter-spacing:-.01em;margin:4px 0 6px}
-  .brand p{margin:0;font-family:var(--f-body);font-size:12.5px;color:var(--ink-dim);line-height:1.45}
+  .brand h1{font-family:var(--f-head);font-weight:600;font-size:23px;line-height:1.18;
+    letter-spacing:-.005em;margin:5px 0 6px}
+  .brand p{margin:0;font-family:var(--f-body);font-size:12.5px;color:var(--ink-dim);line-height:1.5}
 
   .tallies{padding:12px 18px 6px;display:flex;flex-direction:column;flex:none}
   /* Рядок статусу: вертикальна риска, назва, крапкова виноска, число */
@@ -74,10 +78,10 @@
   .tally:hover .lab{color:var(--accent)}
   .tally.off{opacity:.34}
   .tally .dot{width:4px;height:15px;border-radius:0;flex:none;margin-right:9px}
-  .tally .lab{font-family:var(--f-body);font-size:13.5px;flex:none}
+  .tally .lab{font-family:var(--f-body);font-size:13px;flex:none;letter-spacing:.005em}
   .tally .lead{flex:1;height:1px;margin:0 8px 4px;
     background:repeating-linear-gradient(to right,var(--line) 0 1px,transparent 1px 4px)}
-  .tally .num{font-family:var(--f-num);font-weight:500;font-size:14px;
+  .tally .num{font-family:var(--f-num);font-weight:600;font-size:14.5px;
     font-variant-numeric:tabular-nums}
   .tally[data-k="mayor"] .dot{background:var(--mayor)}
   .tally[data-k="acting"] .dot{background:var(--acting)}
@@ -94,16 +98,16 @@
   .filters-bar{display:flex;align-items:center;gap:8px;padding:2px 16px 10px;flex:none}
   .filters-btn{flex:1;display:flex;align-items:center;gap:8px;cursor:pointer;
     background:var(--panel-2);border:1px solid var(--line);border-radius:0;
-    padding:9px 11px;font-family:var(--f-head);font-size:12.5px;letter-spacing:.06em;
-    text-transform:uppercase;color:var(--ink);text-align:left}
+    padding:10px 12px;font-family:var(--f-head);font-size:12.5px;font-weight:500;
+    letter-spacing:.03em;color:var(--ink);text-align:left}
   .filters-btn:hover{border-color:var(--accent)}
   .filters-btn .chev{margin-left:auto;transition:transform .18s;color:var(--ink-faint);font-size:11px}
   .filters-btn.open .chev{transform:rotate(180deg)}
   .filters-btn .badge{background:var(--ink);color:#fff;border-radius:0;
     padding:1px 6px;font-size:11px;font-weight:500;font-family:var(--f-num)}
   .filters-reset{background:none;border:1px solid var(--line);border-radius:0;
-    padding:9px 11px;font-family:var(--f-head);font-size:12px;letter-spacing:.06em;
-    text-transform:uppercase;color:var(--ink-dim);cursor:pointer}
+    padding:10px 12px;font-family:var(--f-head);font-size:12px;font-weight:500;
+    letter-spacing:.03em;color:var(--ink-dim);cursor:pointer}
   .filters-reset:hover{border-color:var(--nobody);color:var(--nobody)}
   .filters-reset[hidden]{display:none}
   /* Одна спільна зона прокрутки: спершу фільтри на всю потрібну висоту,
@@ -149,7 +153,7 @@
   .hist i.in{background:var(--accent)}
 
   /* список міст */
-  .list-h{margin:0 18px;padding:9px 0 7px;font-size:10.5px;letter-spacing:.18em;
+  .list-h{margin:0 18px;padding:9px 0 7px;font-size:10.5px;letter-spacing:.1em;
     text-transform:uppercase;color:var(--ink-faint);font-family:var(--f-head);font-weight:500;
     flex:none;position:sticky;top:0;background:var(--panel);z-index:2;
     border-top:2px solid var(--rule);border-bottom:none}
@@ -162,13 +166,15 @@
   .row:hover{background:var(--panel-2)}
   .row.sel{background:var(--panel-2);box-shadow:inset 3px 0 0 var(--ink)}
   .row .rtop{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
-  .row .rc{font-family:var(--f-head);font-weight:600;font-size:16px;line-height:1.15;
+  .row .rc{font-family:var(--f-head);font-weight:600;font-size:15.5px;line-height:1.25;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .row .rmeta{font-family:var(--f-body);font-size:12px;color:var(--ink-dim);margin-top:3px;
+  .row .rmeta{font-family:var(--f-body);font-size:12px;color:var(--ink-dim);margin-top:4px;
+    font-variant-numeric:tabular-nums;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   /* Тег статусу: кольорова риска ліворуч замість заливки по контуру */
-  .tag{font-family:var(--f-head);font-size:10px;letter-spacing:.12em;text-transform:uppercase;
-    padding:2px 7px 2px 6px;border-left:3px solid;flex:none;white-space:nowrap}
+  .tag{font-family:var(--f-head);font-size:10.5px;font-weight:500;letter-spacing:.05em;
+    text-transform:uppercase;padding:3px 8px 3px 7px;border-left:3px solid;flex:none;
+    white-space:nowrap;border-radius:0 3px 3px 0}
 
   .foot{padding:11px 18px;border-top:1px solid var(--rule);font-family:var(--f-body);
     font-size:10.5px;color:var(--ink-faint);line-height:1.5;flex:none}
@@ -179,8 +185,8 @@
   /* кнопка повернення до огляду всієї країни — лівий верхній кут карти */
   #homeBtn{position:absolute;left:14px;top:14px;z-index:3;
     background:var(--panel);border:1px solid var(--ink);border-radius:0;
-    padding:8px 12px;font-family:var(--f-head);font-size:11px;letter-spacing:.1em;
-    text-transform:uppercase;color:var(--ink);cursor:pointer;box-shadow:var(--shadow)}
+    padding:9px 13px;font-family:var(--f-head);font-size:12px;font-weight:500;
+    letter-spacing:.02em;color:var(--ink);cursor:pointer;box-shadow:var(--shadow)}
   #homeBtn:hover{color:var(--ink)}
 
   /* базовий попап (наведення) */
@@ -194,16 +200,16 @@
 
   .pc{min-width:220px;max-width:300px}
   .pc-basic{padding:12px 14px}
-  .pc-city{font-family:var(--f-head);font-weight:600;font-size:20px;line-height:1.05;letter-spacing:-.01em}
+  .pc-city{font-family:var(--f-head);font-weight:600;font-size:20px;line-height:1.2;letter-spacing:-.005em}
   .pc-reg{font-family:var(--f-body);font-size:12px;color:var(--ink-dim);margin-top:3px}
-  .pc-status{display:inline-flex;align-items:center;margin-top:9px;border-radius:0;
-    font-family:var(--f-head);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;
-    padding:3px 9px 3px 7px;border-left:3px solid}
+  .pc-status{display:inline-flex;align-items:center;margin-top:9px;border-radius:0 3px 3px 0;
+    font-family:var(--f-head);font-size:10.5px;font-weight:500;letter-spacing:.05em;
+    text-transform:uppercase;padding:4px 10px 4px 8px;border-left:3px solid}
   .pc-status .d{display:none}
   /* Паралельна ВА: коротка примітка з тим самим кільцевим символом, що на карті */
   .pc-vanote{display:flex;align-items:center;gap:7px;margin-top:8px;
     font-family:var(--f-body);font-size:11.5px;color:var(--ink-dim)}
-  .pc-vanote .ring{width:9px;height:9px;border-radius:50%;border:2px solid var(--va);
+  .pc-vanote .ring{width:13px;height:13px;border-radius:50%;border:3px solid var(--va);
     background:transparent;flex:none}
   .pc-lead{margin-top:10px;font-size:12.5px;color:var(--ink-dim);line-height:1.5}
   .pc-lead b{color:var(--ink);font-weight:600}
@@ -218,7 +224,7 @@
   .pc-pop{font-size:11px;color:var(--ink-dim);margin-bottom:10px}
   .blk{margin-bottom:13px}
   .blk:last-child{margin-bottom:0}
-  .blk .h{font-family:var(--f-head);font-weight:500;font-size:10px;letter-spacing:.14em;
+  .blk .h{font-family:var(--f-head);font-weight:500;font-size:10.5px;letter-spacing:.08em;
     text-transform:uppercase;color:var(--ink-faint);margin-bottom:7px}
   .kv{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:12px}
   .kv .k{color:var(--ink-faint)}
@@ -227,7 +233,7 @@
   .ctrl-note{font-size:10.5px;color:var(--ink-faint);line-height:1.4;margin-top:5px}
   .party{display:inline-block;margin-top:6px;font-family:var(--f-body);font-size:11.5px;
     padding:2px 8px;border-radius:0;border:1px solid var(--line);color:var(--ink);background:var(--panel-2)}
-  .lead-name{font-family:var(--f-head);font-size:17px;font-weight:600;color:var(--ink);line-height:1.2}
+  .lead-name{font-family:var(--f-head);font-size:16.5px;font-weight:600;color:var(--ink);line-height:1.3}
   .lead-note{font-size:11.5px;color:var(--ink-dim);margin-top:8px;line-height:1.45}
   /* Вільна примітка до блоку керівника («змінився в липні 2026») */
   .lead-remark{font-size:11px;color:var(--ink-dim);margin-top:10px;line-height:1.45;
@@ -244,9 +250,9 @@
   .mcell{background:transparent;border:none;border-right:1px solid var(--line);border-radius:0;
     padding:8px 4px;text-align:left}
   .mcell:last-child{border-right:none}
-  .mcell .mv{font-family:var(--f-num);font-weight:500;font-size:14px;line-height:1.1;
+  .mcell .mv{font-family:var(--f-num);font-weight:600;font-size:14.5px;line-height:1.15;
     white-space:nowrap;font-variant-numeric:tabular-nums}
-  .mcell .ml{font-size:9px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-faint);
+  .mcell .ml{font-size:9.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-faint);
     margin-top:4px;line-height:1.25}
   .sec-row{display:flex;align-items:center;gap:10px;padding:9px 0 0;
     border:none;border-top:1px solid var(--line);border-radius:0;background:transparent}
@@ -440,8 +446,8 @@
       <div><span class="d" style="background:var(--va)"></span>військова адміністрація</div>
       <div><span class="d" style="background:var(--nobody)"></span>немає голови й секретаря</div>
       <div style="margin-top:5px"><span class="d" style="width:16px;height:0;border-top:2px dashed var(--front);border-radius:0"></span>лінія фронту</div>
-      <div style="margin-top:5px"><span class="d" style="width:9px;height:9px;border-radius:50%;
-        border:2px solid var(--va);background:transparent"></span>+ паралельна ВА</div>
+      <div style="margin-top:5px"><span class="d" style="width:13px;height:13px;border-radius:50%;
+        border:3px solid var(--va);background:transparent"></span>+ паралельна ВА</div>
     </div>
   </div>
 
@@ -689,9 +695,12 @@ function addLayers(){
     paint:{
       'circle-color':'transparent',
       'circle-stroke-color':T.vaRing,
-      'circle-stroke-width':2,
-      'circle-radius':['+',radiusExpr(false),5],
-      'circle-opacity':0.9
+      /* товщина і відступ ростуть із зумом: на дрібному масштабі кільце
+         інакше зливається з самою точкою */
+      'circle-stroke-width':['interpolate',['linear'],['zoom'],5,3,8,4,12,5],
+      'circle-radius':['+',radiusExpr(false),
+        ['interpolate',['linear'],['zoom'],5,7,8,9,12,12]],
+      'circle-opacity':0.95
     }});
 
   localizeLabels();
