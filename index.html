@@ -876,6 +876,7 @@ function age(b){return b?(YEAR_NOW-b):null;}
 const PARTY_COLORS=[
   {m:["слуга народу"],                       c:"#2f9e44"},  // зелений
   {m:["європейська солідарність","бпп","солідарність"], c:"#1c4e9c"},  // темно-синій
+  {m:["єс"], exact:true,                     c:"#1c4e9c"},  // те саме, що ЄС
   {m:["батьківщин"],                         c:"#d32f2f"},  // червоне серце
   {m:["опозиційна платформа","за життя","опзж"], c:"#1f78b4"},
   {m:["опозиційний блок"],                   c:"#0f5a8f"},
@@ -897,7 +898,9 @@ function partyKey(name){
 function partyColor(name){
   if(!name||name==='нема') return null;
   const k=partyKey(name);
-  for(const p of PARTY_COLORS){ if(p.m.some(w=>k.includes(w))) return p.c; }
+  for(const p of PARTY_COLORS){
+    if(p.m.some(w=> p.exact ? k===w : k.includes(w))) return p.c;
+  }
   return PARTY_NEUTRAL;
 }
 function partyChip(name,label){
