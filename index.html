@@ -6,10 +6,12 @@
 <!-- GitHub Pages не дозволяє задавати заголовки відповіді, тож політика
      безпеки ставиться мета-тегом. Дозволені лише ті домени, які реально
      потрібні: шрифти Google і тайли OpenFreeMap (MapLibre — локальний).
+     blob: обов'язковий — MapLibre запускає свій воркер саме з blob-адреси,
+     без цього дозволу карта не стартує взагалі.
      'unsafe-inline' для скриптів потрібен, бо весь код вбудований у сторінку;
      заборона на сторонні домени все одно діє — вкрадені дані нікуди відправити.
      frame-ancestors * лишає можливість вбудовування в новинні сайти. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://tiles.openfreemap.org; connect-src https://tiles.openfreemap.org; base-uri 'none'; form-action 'none'; frame-ancestors *" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' blob:; worker-src blob:; child-src blob:; style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; font-src https://fonts.gstatic.com data:; img-src 'self' data: blob: https://tiles.openfreemap.org https://*.openfreemap.org; connect-src https://tiles.openfreemap.org https://*.openfreemap.org data: blob:; base-uri 'none'; form-action 'none'; frame-ancestors *" />
 <meta name="referrer" content="strict-origin-when-cross-origin" />
 <title>Міські голови України — карта управління</title>
 <!-- MapLibre лежить локально (vendor/), а не на unpkg: карта не залежить
