@@ -90,11 +90,15 @@
   .tally:hover .lab{color:var(--accent)}
   .tally.off{opacity:.34}
   .tally .dot{width:4px;height:15px;border-radius:0;flex:none;margin-right:9px}
-  .tally .lab{font-family:var(--f-body);font-size:13px;flex:none;letter-spacing:.005em}
-  .tally .lead{flex:1;height:1px;margin:0 8px 4px;
+  /* flex:none у назви й був причиною, чому число виїжджало за екран:
+     довгий підпис не мав права стискатись і виштовхував цифру. */
+  .tally .lab{font-family:var(--f-body);font-size:13px;letter-spacing:.005em;
+    flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .tally .lab-short{display:none}
+  .tally .lead{flex:1 1 auto;min-width:10px;height:1px;margin:0 8px 4px;
     background:repeating-linear-gradient(to right,var(--line) 0 1px,transparent 1px 4px)}
   .tally .num{font-family:var(--f-num);font-weight:600;font-size:14.5px;
-    font-variant-numeric:tabular-nums}
+    font-variant-numeric:tabular-nums;flex:none}
   .tally[data-k="mayor"] .dot{background:var(--mayor)}
   .tally[data-k="acting"] .dot{background:var(--acting)}
   .tally[data-k="va"] .dot{background:var(--va)}
@@ -363,8 +367,12 @@
     .brand p{display:none}
     .tallies{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:10px 12px 2px}
     .tally{padding:7px 9px}
-    .tally .lab{font-size:11px}
-    .tally .num{font-size:15px}
+    .tally .lab{font-size:11.5px}
+    .tally .lab-full{display:none}
+    .tally .lab-short{display:inline}
+    .tally .num{font-size:14px}
+    .tally .lead{margin:0 6px 3px}
+    .tallies{gap:4px 10px;padding:10px 14px 2px}
     .foot{padding:8px 14px;font-size:9.5px}
   }
   .sheet-handle{display:none;justify-content:center;align-items:center;
@@ -391,10 +399,10 @@
     </div>
 
     <div class="tallies" id="tallies">
-      <div class="tally" data-k="mayor"><span class="dot"></span><span class="lab">Міський голова</span><span class="lead"></span><span class="num" id="n-mayor">0</span></div>
-      <div class="tally" data-k="acting"><span class="dot"></span><span class="lab">Виконує обов'язки секретар</span><span class="lead"></span><span class="num" id="n-acting">0</span></div>
-      <div class="tally" data-k="va"><span class="dot"></span><span class="lab">Військова адміністрація</span><span class="lead"></span><span class="num" id="n-va">0</span></div>
-      <div class="tally" data-k="none"><span class="dot"></span><span class="lab">Немає голови та секретаря</span><span class="lead"></span><span class="num" id="n-none">0</span></div>
+      <div class="tally" data-k="mayor"><span class="dot"></span><span class="lab"><span class="lab-full">Міський голова</span><span class="lab-short">Голова</span></span><span class="lead"></span><span class="num" id="n-mayor">0</span></div>
+      <div class="tally" data-k="acting"><span class="dot"></span><span class="lab"><span class="lab-full">Виконує обов'язки секретар</span><span class="lab-short">В.о. секретаря</span></span><span class="lead"></span><span class="num" id="n-acting">0</span></div>
+      <div class="tally" data-k="va"><span class="dot"></span><span class="lab"><span class="lab-full">Військова адміністрація</span><span class="lab-short">Військова адмін.</span></span><span class="lead"></span><span class="num" id="n-va">0</span></div>
+      <div class="tally" data-k="none"><span class="dot"></span><span class="lab"><span class="lab-full">Немає голови та секретаря</span><span class="lab-short">Немає керівника</span></span><span class="lead"></span><span class="num" id="n-none">0</span></div>
     </div>
 
     <div class="search"><input id="q" type="text" placeholder="Пошук міста…" autocomplete="off" /></div>
