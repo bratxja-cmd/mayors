@@ -759,6 +759,7 @@ window.CITIES = [
    "party": "ОПЗЖ",
    "sex": "жінка"
   }
+  "parallelVA": true
  },
  {
   "city": "Шахтарське",
@@ -4185,6 +4186,7 @@ window.CITIES = [
    "since": 2025,
    "years": 1
   }
+  "parallelVA": true
  },
  {
   "city": "Татарбунари",
@@ -5040,6 +5042,7 @@ window.CITIES = [
    "party": "ЄС",
    "sex": "чоловік"
   }
+  "parallelVA": true
  },
  {
   "city": "Рівне",
@@ -5237,6 +5240,7 @@ window.CITIES = [
    "since": 2024,
    "years": 2
   }
+  "parallelVA": true
  },
  {
   "city": "Хутір-Михайлівський",
@@ -6333,6 +6337,7 @@ window.CITIES = [
    "party": "Воля",
    "sex": "чоловік"
   }
+ "parallelVA": true
  },
  {
   "city": "Полонне",
@@ -7264,6 +7269,7 @@ window.CITIES = [
    "years": 8
   },
   "secretary": null
+  "parallelVA": true
  },
  {
   "city": "Сновськ",
