@@ -3,8 +3,18 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<!-- GitHub Pages не дозволяє задавати заголовки відповіді, тож політика
+     безпеки ставиться мета-тегом. Дозволені лише ті домени, які реально
+     потрібні: шрифти Google і тайли OpenFreeMap (MapLibre — локальний).
+     'unsafe-inline' для скриптів потрібен, бо весь код вбудований у сторінку;
+     заборона на сторонні домени все одно діє — вкрадені дані нікуди відправити.
+     frame-ancestors * лишає можливість вбудовування в новинні сайти. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://tiles.openfreemap.org; connect-src https://tiles.openfreemap.org; base-uri 'none'; form-action 'none'; frame-ancestors *" />
+<meta name="referrer" content="strict-origin-when-cross-origin" />
 <title>Міські голови України — карта управління</title>
-<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
+<!-- MapLibre лежить локально (vendor/), а не на unpkg: карта не залежить
+     від доступності CDN і не може отримати підмінений код. -->
+<link href="vendor/maplibre-gl.css" rel="stylesheet" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -466,7 +476,7 @@
     </div>
   </div>
 
-<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="vendor/maplibre-gl.js"></script>
 
 <!-- Повний набір даних. Генерується командою: python build_data.py mayors.xlsx
      Якщо файлу немає (наприклад, ви щойно клонували репозиторій),
@@ -537,6 +547,18 @@ const FRONT_DATE = "27 серпня 2026 (дані DeepState)";
    ═══════════════════════════════════════════════════════════════════ */
 const DATA_DATE = "травень 2026";
 const CREDITS   = "";
+
+/* Екранування даних перед вставкою в HTML.
+   Значення з cities.js (назви міст, ПІБ, партії, примітки) — це ТЕКСТ,
+   а не розмітка. Без цієї обгортки символи < > " ' браузер трактує як
+   команди: рядок «Партія "НАМ ТУТ ЖИТИ!"» здатен розірвати атрибут, а
+   довільний текст у примітці — виконатись як код.
+   Числа й кольори зі STATUS/PARTY_COLORS екранувати не треба — вони
+   не походять із даних. */
+function esc(v){
+  return String(v ?? '').replace(/[&<>"']/g, ch =>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
 
 const STATUS = {
   mayor:{color:'#1b6e8c',label:'Міський голова',role:'Міський голова'},
@@ -803,16 +825,16 @@ function basicHTML(c){
   const st=STATUS[c.status];const col=sc(c.status);const L=leadNow(c);
   let leadLine='';
   if(c.status==='acting' && L.name){
-    leadLine=`<div class="pc-lead"><b>${L.name}</b><br><span class="pc-role">виконує обов'язки</span></div>`;
+    leadLine=`<div class="pc-lead"><b>${esc(L.name)}</b><br><span class="pc-role">виконує обов'язки</span></div>`;
   }else if(L.name){
-    leadLine=`<div class="pc-lead"><span class="pc-role">${L.role}</span><br><b>${L.name}</b></div>`;
+    leadLine=`<div class="pc-lead"><span class="pc-role">${esc(L.role)}</span><br><b>${esc(L.name)}</b></div>`;
   }else{
-    leadLine=`<div class="pc-lead"><span class="pc-role">${L.role}</span></div>`;
+    leadLine=`<div class="pc-lead"><span class="pc-role">${esc(L.role)}</span></div>`;
   }
   return `<div class="pc"><div class="pc-strip" style="background:${col}"></div><div class="pc-basic">
-    <div class="pc-city">${c.city}</div>
-    <div class="pc-reg">${c.region} обл. · ${c.district} р-н</div>
-    <div class="pc-status" style="border-left-color:${col};color:${TAG_INK[c.status]||col};background:${TAG_BG[c.status]||'transparent'}">${st.label}</div>
+    <div class="pc-city">${esc(c.city)}</div>
+    <div class="pc-reg">${esc(c.region)} обл. · ${esc(c.district)} р-н</div>
+    <div class="pc-status" style="border-left-color:${col};color:${TAG_INK[c.status]||col};background:${TAG_BG[c.status]||'transparent'}">${esc(st.label)}</div>
     ${c.parallelVA?`<div class="pc-vanote"><span class="ring"></span>Паралельно діє військова адміністрація</div>`:''}
     ${leadLine}
     <div class="pc-hint">Клік — детальніше ▾</div>
@@ -872,8 +894,8 @@ function partyChip(name,label){
   if(!name||name==='нема') return '';
   const col=partyColor(name);
   return `<div class="party-wrap">
-    ${label?`<div class="party-label">${label}</div>`:''}
-    <span class="party-chip" style="--pc:${col}"><span class="party-swatch"></span>${name}</span>
+    ${label?`<div class="party-label">${esc(label)}</div>`:''}
+    <span class="party-chip" style="--pc:${col}"><span class="party-swatch"></span>${esc(name)}</span>
   </div>`;
 }
 
@@ -888,8 +910,8 @@ function metrics(items){
 function secRow(p){
   if(!p||!p.name) return '';
   return `<div class="sec-row">
-    <div class="sec-b"><div class="sn">${p.name}</div>
-      ${p.sex?`<div class="sp">${p.sex}</div>`:''}</div>
+    <div class="sec-b"><div class="sn">${esc(p.name)}</div>
+      ${p.sex?`<div class="sp">${esc(p.sex)}</div>`:''}</div>
   </div>`+partyChip(p.party,'Партія, від якої обраний (2020)');
 }
 
@@ -897,9 +919,9 @@ function detailHTML(c){
   const st=STATUS[c.status];const col=sc(c.status);
   const m=c.mayor,s=c.secretary,a=c.acting,va=c.va;
   let h=`<div class="pc"><div class="pc-strip" style="background:${col}"></div><div class="pc-basic">
-    <div class="pc-city">${c.city}</div>
-    <div class="pc-reg">${c.region} обл. · ${c.district} р-н</div>
-    <div class="pc-status" style="border-left-color:${col};color:${TAG_INK[c.status]||col};background:${TAG_BG[c.status]||'transparent'}">${st.label}</div>
+    <div class="pc-city">${esc(c.city)}</div>
+    <div class="pc-reg">${esc(c.region)} обл. · ${esc(c.district)} р-н</div>
+    <div class="pc-status" style="border-left-color:${col};color:${TAG_INK[c.status]||col};background:${TAG_BG[c.status]||'transparent'}">${esc(st.label)}</div>
     ${c.parallelVA?`<div class="pc-vanote"><span class="ring"></span>Паралельно діє військова адміністрація${c.parallelVA.since?` з ${yearOf(c.parallelVA.since)}`:''}</div>`:''}
   </div><div class="pc-det">
     <div class="pc-pop">Населення: ${Number(c.pop).toLocaleString('uk-UA')} (2020 рік)</div>`;
@@ -912,7 +934,7 @@ function detailHTML(c){
         ні призначеного виконувача обов'язків.</div></div></div>`;
     if(m&&m.name){
       h+=`<div class="blk"><div class="h">Останній обраний голова</div>
-        <div class="lead-name" style="font-size:14px">${m.name}</div>
+        <div class="lead-name" style="font-size:14px">${esc(m.name)}</div>
         ${partyChip(m.party,'Партія, від якої обраний (2020)')}`;
       h+=metrics([
         m.firstElected?[yearOf(m.firstElected),'Вперше обраний']:null,
@@ -926,7 +948,7 @@ function detailHTML(c){
       <div class="va-x">Міського голови немає — містом керує військова адміністрація${va&&va.since?` з ${yearOf(va.since)}`:''}.</div></div></div>`;
     if(m&&m.name){
       h+=`<div class="blk"><div class="h">Останній обраний голова</div>
-        <div class="lead-name" style="font-size:14px">${m.name}</div>
+        <div class="lead-name" style="font-size:14px">${esc(m.name)}</div>
         ${partyChip(m.party,'Партія, від якої обраний (2020)')}`;
       h+=metrics([
         m.firstElected?[yearOf(m.firstElected),'Вперше обраний']:null,
@@ -941,8 +963,8 @@ function detailHTML(c){
     const asSecretary = a && a.kind==='secretary';
     h+=`<div class="blk"><div class="h">Виконувач обов'язків</div>
       <div class="lead-note" style="margin-top:0;margin-bottom:8px">Обраного міського голови немає.</div>
-      <div class="lead-name">${who}</div>
-      <div class="lead-note">${asSecretary?'Секретар ради виконує обов\'язки міського голови':'Виконувач обов\'язків міського голови'}${a&&a.sex?` · ${a.sex}`:''}</div>
+      <div class="lead-name">${esc(who)}</div>
+      <div class="lead-note">${asSecretary?'Секретар ради виконує обов\'язки міського голови':'Виконувач обов\'язків міського голови'}${a&&a.sex?` · ${esc(a.sex)}`:''}</div>
       ${(a&&a.party)?partyChip(a.party,'Партія'):''}`;
     /* sinceText — необов'язкове поле для точнішої дати («липень 2026»).
        Якщо його немає, показуємо рік із since, як раніше. */
@@ -953,7 +975,7 @@ function detailHTML(c){
     ]);
     /* note — вільна примітка; prev — попередник на цій посаді.
        Обидва поля необов'язкові, за їх відсутності нічого не малюється. */
-    if(a&&a.note) h+=`<div class="lead-remark">${a.note}</div>`;
+    if(a&&a.note) h+=`<div class="lead-remark">${esc(a.note)}</div>`;
     if(a&&a.prev&&a.prev.name){
       const p=a.prev;
       /* untilText пишеться як готова фраза («до липня 2026»), бо відмінок
@@ -962,9 +984,9 @@ function detailHTML(c){
       const sub=[untilTx,p.sex,p.party].filter(Boolean).join(' · ');
       h+=`<div class="prev-b">
         <div class="pl">Попередник на посаді</div>
-        <div class="pn">${p.name}</div>
-        ${sub?`<div class="px">${sub}</div>`:''}
-        ${p.note?`<div class="px">${p.note}</div>`:''}
+        <div class="pn">${esc(p.name)}</div>
+        ${sub?`<div class="px">${esc(sub)}</div>`:''}
+        ${p.note?`<div class="px">${esc(p.note)}</div>`:''}
       </div>`;
     }
     h+=`</div>`;
@@ -972,10 +994,10 @@ function detailHTML(c){
   else if(c.status==='mayor'){
     // Є обраний голова
     h+=`<div class="blk"><div class="h">Міський голова</div>
-      <div class="lead-name">${m&&m.name?m.name:'—'}</div>`;
+      <div class="lead-name">${m&&m.name?esc(m.name):'—'}</div>`;
     if(m&&(m.born||m.sex)){
       const bornTx=m.born?`${m.sex==='жінка'?'Народилася':'Народився'} ${yearOf(m.born)}`:'';
-      h+=`<div class="lead-note" style="margin-top:5px">${[bornTx,m.sex].filter(Boolean).join(' · ')}</div>`;
+      h+=`<div class="lead-note" style="margin-top:5px">${esc([bornTx,m.sex].filter(Boolean).join(' · '))}</div>`;
     }
     h+= m?partyChip(m.party,'Партія, від якої обраний (2020)'):'';
     if(m) h+=metrics([
@@ -1270,10 +1292,10 @@ function renderList(filterText){
     const col=sc(x.c.status);
     return `<div class="row" data-i="${x.i}">
       <span class="rtop">
-        <span class="rc">${x.c.city}</span>
-        <span class="tag" style="border-left-color:${col};color:${TAG_INK[x.c.status]||col};background:${TAG_BG[x.c.status]||'transparent'}">${TAG_TXT[x.c.status]||''}</span>
+        <span class="rc">${esc(x.c.city)}</span>
+        <span class="tag" style="border-left-color:${col};color:${TAG_INK[x.c.status]||col};background:${TAG_BG[x.c.status]||'transparent'}">${esc(TAG_TXT[x.c.status]||'')}</span>
       </span>
-      <span class="rmeta">${x.c.region} обл. · ${Number(x.c.pop).toLocaleString('uk-UA')} мешканців</span>
+      <span class="rmeta">${esc(x.c.region)} обл. · ${Number(x.c.pop).toLocaleString('uk-UA')} мешканців</span>
     </div>`;
   }).join('')||`<div style="padding:14px;color:var(--ink-faint);font-size:12px">Нічого не знайдено</div>`;
   el.querySelectorAll('.row').forEach(r=>{
