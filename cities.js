@@ -765,7 +765,7 @@ window.CITIES = [
   "city": "Шахтарське",
   "region": "Дніпропетровська",
   "district": "Синельниківський",
-  "pop": 30321,
+  "pop": 27892,
   "lat": 48.3505864,
   "lon": 36.402296,
   "status": "mayor",
@@ -7377,13 +7377,13 @@ window.CITIES = [
   "secretary": {
    "name": "Стальниченко Юрій Валерійович",
    "party": "Слуга народу",
-   "sex": "жінка"
+   "sex": "чоловік"
   },
   "acting": {
    "name": "Стальниченко Юрій Валерійович",
    "party": "Слуга народу",
    "kind": "secretary",
-   "sex": "жінка",
+   "sex": "чоловік",
    "since": 2024,
    "years": 2
   }
@@ -7531,7 +7531,8 @@ window.CITIES = [
    "party": "ОПЗЖ",
    "years": 2
   },
-  "secretary": null
+  "secretary": null,
+  "va": {}
  },
  {
   "city": "Білозерське",
