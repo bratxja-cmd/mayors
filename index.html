@@ -6,37 +6,43 @@
 <title>Міські голови України — карта управління</title>
 <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@400;500;600&family=Spectral:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   /* ===== СВІТЛА ТЕМА ===== */
   :root{
-    --bg:#eef1f5;
+    --bg:#eff2f4;
     --panel:#ffffff;
-    --panel-2:#f4f6f9;
-    --line:#dde3ea;
-    --ink:#1a2634;
-    --ink-dim:#5a6a7b;
-    --ink-faint:#8b9aab;
-    --shadow:0 12px 32px rgba(30,50,80,.14);
-    --mayor:#12a17d;
-    --secretary:#d98416;
-    --acting:#e08a12;
-    --va:#8a52a3;
-    --nobody:#2b3138;   /* графіт — «немає голови та секретаря» */
-    --accent:#12a17d;
-    --front:#d92b20;
+    --panel-2:#f2f4f6;
+    --line:#e4e8eb;         /* тонка сіра лінійка між записами */
+    --rule:#121212;         /* товста чорна лінійка над розділом */
+    --ink:#121212;
+    --ink-dim:#5a6e78;
+    --ink-faint:#758d99;
+    --brand:#e3120b;        /* фірмова смуга вгорі — тільки вона червона */
+    --shadow:0 10px 26px rgba(18,18,18,.12);
+    --mayor:#1b6e8c;
+    --secretary:#e08a0b;
+    --acting:#e08a0b;
+    --va:#15181c;
+    --nobody:#c41e24;
+    --accent:#1b6e8c;
+    --front:#c41e24;
     --pt-stroke:#ffffff;
-    --border-line:#3d5a80;
+    --border-line:#4a5c68;
     --border-halo:#ffffff;
-    --label-color:#1a2634;
+    --label-color:#121212;
     --label-halo:#ffffff;
+    --f-head:'Archivo Narrow',system-ui,sans-serif;
+    --f-body:'Spectral',Georgia,serif;
+    --f-num:'IBM Plex Mono',ui-monospace,monospace;
   }
   *{box-sizing:border-box}
   /* 100vh на телефоні = висота БЕЗ адресного рядка, тому нижня частина
      сторінки ховається під ним. dvh — реальна видима висота. */
   html,body{height:100vh;height:100dvh;margin:0}
   body{
-    font-family:'Inter',system-ui,sans-serif;
+    font-family:var(--f-body);
     background:var(--bg);color:var(--ink);
     display:flex;overflow:hidden;
   }
@@ -47,26 +53,32 @@
     display:flex;flex-direction:column;z-index:2;
     overflow:hidden;min-height:0;
   }
-  .brand{padding:18px 20px 14px;border-bottom:1px solid var(--line);flex:none}
+  /* Фірмова червона смуга — єдиний червоний елемент інтерфейсу */
+  .brandbar{height:7px;background:var(--brand);flex:none}
+  .brand{padding:15px 18px 13px;border-bottom:1px solid var(--rule);flex:none}
   .brand .kicker{
-    font-family:'Oswald';font-weight:600;letter-spacing:.18em;
+    font-family:var(--f-head);font-weight:600;letter-spacing:.18em;
     text-transform:uppercase;font-size:10.5px;color:var(--ink-faint);
   }
-  .brand h1{font-family:'Oswald';font-weight:600;font-size:21px;line-height:1.1;margin:5px 0 3px}
-  .brand p{margin:0;font-size:12px;color:var(--ink-dim);line-height:1.4}
+  .brand h1{font-family:var(--f-head);font-weight:600;font-size:24px;line-height:1.05;
+    letter-spacing:-.01em;margin:4px 0 6px}
+  .brand p{margin:0;font-family:var(--f-body);font-size:12.5px;color:var(--ink-dim);line-height:1.45}
 
-  .tallies{padding:14px 14px 4px;display:flex;flex-direction:column;gap:6px;flex:none}
+  .tallies{padding:12px 18px 6px;display:flex;flex-direction:column;flex:none}
+  /* Рядок статусу: вертикальна риска, назва, крапкова виноска, число */
   .tally{
-    display:flex;align-items:center;gap:11px;padding:9px 12px;
-    border:1px solid var(--line);border-radius:9px;background:transparent;
-    cursor:pointer;transition:border-color .15s,transform .05s;user-select:none;
+    display:flex;align-items:flex-end;gap:0;padding:6px 0;
+    border:none;background:transparent;cursor:pointer;user-select:none;
+    transition:opacity .15s;
   }
-  .tally:hover{border-color:var(--accent)}
-  .tally:active{transform:translateY(1px)}
-  .tally.off{opacity:.38}
-  .tally .dot{width:10px;height:10px;border-radius:50%;flex:none}
-  .tally .lab{flex:1;font-size:12.5px}
-  .tally .num{font-family:'Oswald';font-weight:600;font-size:18px}
+  .tally:hover .lab{color:var(--accent)}
+  .tally.off{opacity:.34}
+  .tally .dot{width:4px;height:15px;border-radius:0;flex:none;margin-right:9px}
+  .tally .lab{font-family:var(--f-body);font-size:13.5px;flex:none}
+  .tally .lead{flex:1;height:1px;margin:0 8px 4px;
+    background:repeating-linear-gradient(to right,var(--line) 0 1px,transparent 1px 4px)}
+  .tally .num{font-family:var(--f-num);font-weight:500;font-size:14px;
+    font-variant-numeric:tabular-nums}
   .tally[data-k="mayor"] .dot{background:var(--mayor)}
   .tally[data-k="acting"] .dot{background:var(--acting)}
   .tally[data-k="va"] .dot{background:var(--va)}
@@ -74,22 +86,24 @@
 
   .search{padding:6px 14px 10px;flex:none}
   .search input{
-    width:100%;padding:9px 11px;border-radius:8px;background:var(--panel-2);
-    border:1px solid var(--line);color:var(--ink);font-size:12.5px;font-family:inherit;
+    width:100%;padding:9px 11px;border-radius:0;background:var(--panel-2);
+    border:1px solid var(--line);color:var(--ink);font-size:12.5px;font-family:var(--f-body);
   }
   .search input::placeholder{color:var(--ink-faint)}
   .search input:focus{outline:none;border-color:var(--accent)}
   .filters-bar{display:flex;align-items:center;gap:8px;padding:2px 16px 10px;flex:none}
   .filters-btn{flex:1;display:flex;align-items:center;gap:8px;cursor:pointer;
-    background:var(--panel-2);border:1px solid var(--line);border-radius:8px;
-    padding:9px 11px;font:inherit;font-size:12.5px;color:var(--ink);text-align:left}
+    background:var(--panel-2);border:1px solid var(--line);border-radius:0;
+    padding:9px 11px;font-family:var(--f-head);font-size:12.5px;letter-spacing:.06em;
+    text-transform:uppercase;color:var(--ink);text-align:left}
   .filters-btn:hover{border-color:var(--accent)}
   .filters-btn .chev{margin-left:auto;transition:transform .18s;color:var(--ink-faint);font-size:11px}
   .filters-btn.open .chev{transform:rotate(180deg)}
-  .filters-btn .badge{background:var(--accent);color:#fff;border-radius:999px;
-    padding:1px 7px;font-size:11px;font-weight:600;font-family:'Oswald'}
-  .filters-reset{background:none;border:1px solid var(--line);border-radius:8px;
-    padding:9px 11px;font:inherit;font-size:12px;color:var(--ink-dim);cursor:pointer}
+  .filters-btn .badge{background:var(--ink);color:#fff;border-radius:0;
+    padding:1px 6px;font-size:11px;font-weight:500;font-family:var(--f-num)}
+  .filters-reset{background:none;border:1px solid var(--line);border-radius:0;
+    padding:9px 11px;font-family:var(--f-head);font-size:12px;letter-spacing:.06em;
+    text-transform:uppercase;color:var(--ink-dim);cursor:pointer}
   .filters-reset:hover{border-color:var(--nobody);color:var(--nobody)}
   .filters-reset[hidden]{display:none}
   /* Одна спільна зона прокрутки: спершу фільтри на всю потрібну висоту,
@@ -103,7 +117,7 @@
     border-bottom:1px solid var(--line);margin-bottom:2px;flex:none}
   .controls[hidden]{display:none}
   .ctrl-h{font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-faint);
-    font-family:'Oswald';font-weight:500;margin-bottom:6px}
+    font-family:var(--f-head);font-weight:500;margin-bottom:6px}
   .seg{display:flex;gap:4px;background:var(--panel-2);border:1px solid var(--line);
     border-radius:8px;padding:3px}
   .seg button{flex:1;border:none;background:transparent;color:var(--ink-dim);
@@ -135,53 +149,62 @@
   .hist i.in{background:var(--accent)}
 
   /* список міст */
-  .list-h{padding:9px 16px 6px;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;
-    color:var(--ink-faint);font-family:'Oswald';font-weight:500;flex:none;
-    position:sticky;top:0;background:var(--panel);z-index:2;
-    border-bottom:1px solid var(--line)}
-  #list{flex:none;padding:2px 10px 14px}
+  .list-h{margin:0 18px;padding:9px 0 7px;font-size:10.5px;letter-spacing:.18em;
+    text-transform:uppercase;color:var(--ink-faint);font-family:var(--f-head);font-weight:500;
+    flex:none;position:sticky;top:0;background:var(--panel);z-index:2;
+    border-top:2px solid var(--rule);border-bottom:none}
+  #list{flex:none;padding:0 18px 14px}
   .row{
-    display:flex;align-items:center;gap:11px;padding:10px 10px;border-radius:8px;
+    display:block;padding:10px 0;border-top:1px solid var(--line);
     cursor:pointer;transition:background .12s;
   }
+  #list .row:first-child{border-top:none}
   .row:hover{background:var(--panel-2)}
-  .row.sel{background:color-mix(in srgb,var(--accent) 12%,transparent)}
-  .row .rdot{width:9px;height:9px;border-radius:50%;flex:none}
-  .row .rn{flex:1;min-width:0}
-  .row .rc{display:block;font-size:13.5px;font-weight:600;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .row .rr{display:block;font-size:10.5px;color:var(--ink-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-    margin-top:3px;letter-spacing:.02em;text-transform:uppercase}
-  .row .rp{font-size:11px;color:var(--ink-dim);font-variant-numeric:tabular-nums}
+  .row.sel{background:var(--panel-2);box-shadow:inset 3px 0 0 var(--ink)}
+  .row .rtop{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+  .row .rc{font-family:var(--f-head);font-weight:600;font-size:16px;line-height:1.15;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .row .rmeta{font-family:var(--f-body);font-size:12px;color:var(--ink-dim);margin-top:3px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  /* Тег статусу: кольорова риска ліворуч замість заливки по контуру */
+  .tag{font-family:var(--f-head);font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+    padding:2px 7px 2px 6px;border-left:3px solid;flex:none;white-space:nowrap}
 
-  .foot{padding:11px 16px;border-top:1px solid var(--line);font-size:10.5px;
-    color:var(--ink-faint);line-height:1.5;flex:none}
+  .foot{padding:11px 18px;border-top:1px solid var(--rule);font-family:var(--f-body);
+    font-size:10.5px;color:var(--ink-faint);line-height:1.5;flex:none}
   .foot a{color:var(--ink-dim)}
 
   /* ---------- карта ---------- */
   #map{flex:1;height:100vh;height:100dvh;background:#05070a;position:relative}
   /* кнопка повернення до огляду всієї країни — лівий верхній кут карти */
   #homeBtn{position:absolute;left:14px;top:14px;z-index:3;
-    background:var(--panel);border:1px solid var(--line);border-radius:9px;
-    padding:8px 12px;font:inherit;font-size:12px;color:var(--ink-dim);
-    cursor:pointer;box-shadow:var(--shadow)}
+    background:var(--panel);border:1px solid var(--ink);border-radius:0;
+    padding:8px 12px;font-family:var(--f-head);font-size:11px;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--ink);cursor:pointer;box-shadow:var(--shadow)}
   #homeBtn:hover{color:var(--ink)}
 
   /* базовий попап (наведення) */
   .maplibregl-popup{max-width:none!important}
   .maplibregl-popup-content{
-    background:var(--panel);color:var(--ink);border:1px solid var(--line);
-    border-radius:11px;padding:0;box-shadow:var(--shadow);overflow:hidden;
+    background:var(--panel);color:var(--ink);border:1px solid var(--ink);
+    border-radius:0;padding:0;box-shadow:var(--shadow);overflow:hidden;
   }
   .maplibregl-popup-tip{border-top-color:var(--panel)!important;border-bottom-color:var(--panel)!important}
   .maplibregl-popup-close-button{color:var(--ink-faint);font-size:18px;padding:2px 7px}
 
   .pc{min-width:220px;max-width:300px}
   .pc-basic{padding:12px 14px}
-  .pc-city{font-family:'Oswald';font-weight:600;font-size:18px;line-height:1.1}
-  .pc-reg{font-size:11px;color:var(--ink-faint);margin-top:2px}
-  .pc-status{display:inline-flex;align-items:center;gap:7px;margin-top:9px;
-    font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px}
-  .pc-status .d{width:8px;height:8px;border-radius:50%}
+  .pc-city{font-family:var(--f-head);font-weight:600;font-size:20px;line-height:1.05;letter-spacing:-.01em}
+  .pc-reg{font-family:var(--f-body);font-size:12px;color:var(--ink-dim);margin-top:3px}
+  .pc-status{display:inline-flex;align-items:center;margin-top:9px;border-radius:0;
+    font-family:var(--f-head);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;
+    padding:3px 9px 3px 7px;border-left:3px solid}
+  .pc-status .d{display:none}
+  /* Паралельна ВА: коротка примітка з тим самим кільцевим символом, що на карті */
+  .pc-vanote{display:flex;align-items:center;gap:7px;margin-top:8px;
+    font-family:var(--f-body);font-size:11.5px;color:var(--ink-dim)}
+  .pc-vanote .ring{width:9px;height:9px;border-radius:50%;border:2px solid var(--va);
+    background:transparent;flex:none}
   .pc-lead{margin-top:10px;font-size:12.5px;color:var(--ink-dim);line-height:1.5}
   .pc-lead b{color:var(--ink);font-weight:600}
   .pc-role{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint)}
@@ -195,37 +218,40 @@
   .pc-pop{font-size:11px;color:var(--ink-dim);margin-bottom:10px}
   .blk{margin-bottom:13px}
   .blk:last-child{margin-bottom:0}
-  .blk .h{font-family:'Oswald';font-weight:500;font-size:10px;letter-spacing:.14em;
+  .blk .h{font-family:var(--f-head);font-weight:500;font-size:10px;letter-spacing:.14em;
     text-transform:uppercase;color:var(--ink-faint);margin-bottom:7px}
   .kv{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:12px}
   .kv .k{color:var(--ink-faint)}
   .kv .v{color:var(--ink);font-weight:500}
   .none{font-size:12px;color:var(--ink-dim)}
   .ctrl-note{font-size:10.5px;color:var(--ink-faint);line-height:1.4;margin-top:5px}
-  .party{display:inline-block;margin-top:6px;font-size:11px;padding:2px 8px;border-radius:6px;
-    border:1px solid var(--line);color:var(--ink);background:var(--panel-2)}
-  .lead-name{font-size:15px;font-weight:600;color:var(--ink);line-height:1.25}
+  .party{display:inline-block;margin-top:6px;font-family:var(--f-body);font-size:11.5px;
+    padding:2px 8px;border-radius:0;border:1px solid var(--line);color:var(--ink);background:var(--panel-2)}
+  .lead-name{font-family:var(--f-head);font-size:17px;font-weight:600;color:var(--ink);line-height:1.2}
   .lead-note{font-size:11.5px;color:var(--ink-dim);margin-top:8px;line-height:1.45}
   /* Вільна примітка до блоку керівника («змінився в липні 2026») */
   .lead-remark{font-size:11px;color:var(--ink-dim);margin-top:10px;line-height:1.45;
-    padding:7px 9px;background:var(--panel-2);border-left:2px solid var(--line);border-radius:0 6px 6px 0}
+    padding:7px 9px;background:var(--panel-2);border-left:3px solid var(--ink-faint);border-radius:0;
+    font-family:var(--f-body)}
   /* Попередник на посаді — компактний рядок під основним блоком */
   .prev-b{margin-top:12px;padding-top:10px;border-top:1px dashed var(--line)}
   .prev-b .pl{font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;
-    color:var(--ink-faint);font-family:'Oswald';font-weight:500}
+    color:var(--ink-faint);font-family:var(--f-head);font-weight:500}
   .prev-b .pn{font-size:12.5px;color:var(--ink-dim);margin-top:4px}
   .prev-b .px{font-size:10.5px;color:var(--ink-faint);margin-top:3px;line-height:1.4}
   .pc-strip{height:4px;width:100%}
-  .mrow{display:grid;gap:6px;margin-top:11px}
-  .mcell{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;
-    padding:8px 6px;text-align:center}
-  .mcell .mv{font-family:'Oswald';font-weight:600;font-size:15px;line-height:1.05;white-space:nowrap}
+  .mrow{display:grid;gap:0;margin-top:12px;border-top:1px solid var(--rule)}
+  .mcell{background:transparent;border:none;border-right:1px solid var(--line);border-radius:0;
+    padding:8px 4px;text-align:left}
+  .mcell:last-child{border-right:none}
+  .mcell .mv{font-family:var(--f-num);font-weight:500;font-size:14px;line-height:1.1;
+    white-space:nowrap;font-variant-numeric:tabular-nums}
   .mcell .ml{font-size:9px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-faint);
     margin-top:4px;line-height:1.25}
-  .sec-row{display:flex;align-items:center;gap:10px;padding:9px 11px;
-    border:1px solid var(--line);border-radius:9px;background:var(--panel-2)}
+  .sec-row{display:flex;align-items:center;gap:10px;padding:9px 0 0;
+    border:none;border-top:1px solid var(--line);border-radius:0;background:transparent}
   .sec-av{width:30px;height:30px;border-radius:50%;background:var(--panel);border:1px solid var(--line);
-    display:flex;align-items:center;justify-content:center;font-family:'Oswald';font-weight:600;
+    display:flex;align-items:center;justify-content:center;font-family:var(--f-head);font-weight:600;
     font-size:11px;color:var(--ink-dim);flex:none;letter-spacing:.02em}
   .sec-b{min-width:0;flex:1}
   .sec-b .sn{font-size:12.5px;font-weight:600;line-height:1.25}
@@ -235,7 +261,7 @@
   .pc-foot a{color:var(--ink-dim)}
   .party-wrap{margin-top:9px}
   .party-label{font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);
-    font-family:'Oswald';font-weight:500;margin-bottom:4px}
+    font-family:var(--f-head);font-weight:500;margin-bottom:4px}
   .party-chip{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:500;
     padding:4px 10px;border-radius:7px;color:var(--pc);
     background:color-mix(in srgb,var(--pc) 12%,transparent);
@@ -254,20 +280,21 @@
   .tl .ev::before{content:'';position:absolute;left:-6px;top:2px;width:10px;height:10px;
     border-radius:50%;background:var(--accent);border:2px solid var(--panel)}
   .tl .ev.va-ev::before{background:var(--va)}
-  .tl .yr{font-family:'Oswald';font-weight:600;font-size:13px}
+  .tl .yr{font-family:var(--f-head);font-weight:600;font-size:13px}
   .tl .ev.va-ev .yr{color:var(--va)}
   .tl .tx{font-size:11.5px;color:var(--ink-dim);margin-top:1px;line-height:1.4}
   .va-box{border:1px solid var(--va);border-radius:9px;padding:10px 12px;
     background:color-mix(in srgb,var(--va) 12%,transparent)}
-  .va-t{font-family:'Oswald';font-weight:600;font-size:13px;color:var(--va);margin-bottom:3px}
+  .va-t{font-family:var(--f-head);font-weight:600;font-size:13px;color:var(--va);margin-bottom:3px}
   .va-x{font-size:12px;color:var(--ink-dim);line-height:1.45}
 
   /* легенда */
   .legend-mini{position:absolute;right:14px;bottom:14px;z-index:3;
-    background:var(--panel);border:1px solid var(--line);border-radius:9px;
-    padding:9px 12px;font-size:11px;color:var(--ink-dim);box-shadow:var(--shadow)}
-  .legend-mini div{display:flex;align-items:center;gap:7px;margin:3px 0}
-  .legend-mini .d{width:9px;height:9px;border-radius:50%}
+    background:var(--panel);border:1px solid var(--ink);border-radius:0;
+    padding:9px 12px;font-family:var(--f-body);font-size:11.5px;color:var(--ink-dim);
+    box-shadow:var(--shadow)}
+  .legend-mini div{display:flex;align-items:center;gap:8px;margin:4px 0}
+  .legend-mini .d{width:4px;height:13px;border-radius:0;flex:none}
 
   /* Низький екран: віддаємо трохи висоти списку, фільтри стають нижчі */
   @media (max-height:780px){
@@ -314,9 +341,9 @@
   .sheet-handle{display:none;justify-content:center;align-items:center;
     height:26px;padding:0;cursor:grab;touch-action:none}
   /* Згорнути шторку: видима лише на мобільному і лише коли вона відкрита */
-  #sheetClose{display:none;position:absolute;top:6px;right:10px;z-index:7;
+  #sheetClose{display:none;position:absolute;top:11px;right:10px;z-index:7;
     width:34px;height:34px;align-items:center;justify-content:center;
-    border:1px solid var(--line);border-radius:50%;background:var(--panel);
+    border:1px solid var(--ink);border-radius:0;background:var(--panel);
     color:var(--ink-dim);font:inherit;font-size:17px;line-height:1;
     cursor:pointer;box-shadow:var(--shadow)}
   #sheetClose:active{background:var(--panel-2)}
@@ -327,17 +354,18 @@
   <aside id="panel">
     <button id="sheetClose" type="button" aria-label="Згорнути панель">✕</button>
     <div class="sheet-handle" id="sheetHandle"></div>
+    <div class="brandbar"></div>
     <div class="brand">
-      <div class="kicker">Civic Monitor · 2020–2026</div>
+      <div class="kicker">Місцеве самоврядування</div>
       <h1>Хто керує містами</h1>
-      <p>Статус місцевого самоврядування міст України.</p>
+      <p>Статус місцевого самоврядування міст України</p>
     </div>
 
     <div class="tallies" id="tallies">
-      <div class="tally" data-k="mayor"><span class="dot"></span><span class="lab">Міський голова</span><span class="num" id="n-mayor">0</span></div>
-      <div class="tally" data-k="acting"><span class="dot"></span><span class="lab">Виконує обов'язки секретар</span><span class="num" id="n-acting">0</span></div>
-      <div class="tally" data-k="va"><span class="dot"></span><span class="lab">Військова адміністрація</span><span class="num" id="n-va">0</span></div>
-      <div class="tally" data-k="none"><span class="dot"></span><span class="lab">Немає голови та секретаря</span><span class="num" id="n-none">0</span></div>
+      <div class="tally" data-k="mayor"><span class="dot"></span><span class="lab">Міський голова</span><span class="lead"></span><span class="num" id="n-mayor">0</span></div>
+      <div class="tally" data-k="acting"><span class="dot"></span><span class="lab">Виконує обов'язки секретар</span><span class="lead"></span><span class="num" id="n-acting">0</span></div>
+      <div class="tally" data-k="va"><span class="dot"></span><span class="lab">Військова адміністрація</span><span class="lead"></span><span class="num" id="n-va">0</span></div>
+      <div class="tally" data-k="none"><span class="dot"></span><span class="lab">Немає голови та секретаря</span><span class="lead"></span><span class="num" id="n-none">0</span></div>
     </div>
 
     <div class="search"><input id="q" type="text" placeholder="Пошук міста…" autocomplete="off" /></div>
@@ -407,11 +435,13 @@
   <div id="map">
     <button id="homeBtn" type="button" title="Показати всю Україну">Вся Україна</button>
     <div class="legend-mini">
-      <div><span class="d" style="background:var(--mayor)"></span>міський голова</div>
-      <div><span class="d" style="background:var(--acting)"></span>в.о. керує</div>
-      <div><span class="d" style="background:var(--va)"></span>військова адмін.</div>
+      <div><span class="d" style="background:var(--mayor)"></span>обраний голова</div>
+      <div><span class="d" style="background:var(--acting)"></span>виконувач обов'язків</div>
+      <div><span class="d" style="background:var(--va)"></span>військова адміністрація</div>
       <div><span class="d" style="background:var(--nobody)"></span>немає голови й секретаря</div>
       <div style="margin-top:5px"><span class="d" style="width:16px;height:0;border-top:2px dashed var(--front);border-radius:0"></span>лінія фронту</div>
+      <div style="margin-top:5px"><span class="d" style="width:9px;height:9px;border-radius:50%;
+        border:2px solid var(--va);background:transparent"></span>+ паралельна ВА</div>
     </div>
   </div>
 
@@ -488,12 +518,17 @@ const DATA_DATE = "травень 2026";
 const CREDITS   = "";
 
 const STATUS = {
-  mayor:{color:'#12a17d',label:'Міський голова',role:'Міський голова'},
-  acting:{color:'#e08a12',label:'В.о.',role:'В.о.'},
-  va:{color:'#8a52a3',label:'Військова адміністрація',role:'Військова адміністрація'},
+  mayor:{color:'#1b6e8c',label:'Міський голова',role:'Міський голова'},
+  acting:{color:'#e08a0b',label:'В.о.',role:'В.о.'},
+  va:{color:'#15181c',label:'Військова адміністрація',role:'Військова адміністрація'},
   // немає ні обраного голови, ні секретаря, ні призначеного в.о.
-  none:{color:'#2b3138',label:'Немає голови та секретаря',role:'—'}
+  none:{color:'#c41e24',label:'Немає голови та секретаря',role:'—'}
 };
+/* Теги в списку міст: короткий підпис, колір тексту й підкладки.
+   Текст завжди темніший за підкладку того самого відтінку. */
+const TAG_TXT={mayor:'голова',acting:'в.о.',va:'військова адмін.',none:'немає'};
+const TAG_INK={mayor:'#12506a',acting:'#7a4a02',va:'#15181c',none:'#8e1418'};
+const TAG_BG ={mayor:'#e8f1f5',acting:'#fbf2e2',va:'#edeff1',none:'#fbeded'};
 const YEAR_NOW=2026;
 function sc(s){return STATUS[s].color;}
 
@@ -557,7 +592,10 @@ function toGeo(){
       city:c.city,pop:c.pop,status:c.status,color:sc(c.status),idx:i,
       spop:Math.sqrt(c.pop||0),
       lage:leaderAge(c)||0, ltenure:leaderTenure(c)||0,
-      noage:leaderAge(c)?0:1, noten:leaderTenure(c)?0:1
+      noage:leaderAge(c)?0:1, noten:leaderTenure(c)?0:1,
+      /* Паралельна ВА: військова адміністрація діє поруч із радою,
+         не замінюючи її. Не плутати зі статусом 'va' (ради вже немає). */
+      parallelVA:!!c.parallelVA
     },
     geometry:{type:'Point',coordinates:[c.lon,c.lat]}
   }))};
@@ -643,18 +681,57 @@ function addLayers(){
     'circle-radius':radiusExpr(false),
     'circle-opacity':0.96
   }});
+  /* Друге, ширше коло без заливки — місто, де поряд із радою діє
+     військова адміністрація. Колір кільця той самий, що й у статусу
+     'va', тож символіка читається однаково в обох випадках. */
+  map.addLayer({id:'va-ring',type:'circle',source:'cities',
+    filter:['==',['get','parallelVA'],true],
+    paint:{
+      'circle-color':'transparent',
+      'circle-stroke-color':T.vaRing,
+      'circle-stroke-width':2,
+      'circle-radius':['+',radiusExpr(false),5],
+      'circle-opacity':0.9
+    }});
 
   localizeLabels();
   wireEvents();
   applyFilter();
   applySize();
 }
-map.on('load',addLayers);
+/* Тайли Positron холодно-блакитні. Перебираємо шари підкладки й
+   зсуваємо їх у нейтральні сіро-блакитні тони, щоб карта не сперечалася
+   з панеллю. Робимо це м'яко: якщо шару немає — просто пропускаємо. */
+const TILE_TINT=[
+  [/^background$/,                'background-color','#eff2f4'],
+  [/water|ocean|sea/i,            'fill-color',      '#dfe5e9'],
+  [/landcover|landuse|park|wood|forest|grass/i,'fill-color','#e8ebe6'],
+  [/building/i,                   'fill-color',      '#e4e7ea'],
+  [/^(place|boundary)?.*(residential|suburb)/i,'fill-color','#eceff2']
+];
+function tintBasemap(){
+  let done=0;
+  try{
+    for(const l of map.getStyle().layers||[]){
+      for(const [re,prop,col] of TILE_TINT){
+        if(!re.test(l.id)) continue;
+        const t=l.type;
+        if((prop==='fill-color'&&t!=='fill')||(prop==='background-color'&&t!=='background')) continue;
+        try{ map.setPaintProperty(l.id,prop,col); done++; }catch(e){}
+        break;
+      }
+    }
+  }catch(e){ console.warn('Тайли не перефарбовано:',e); }
+  console.log('Перефарбовано шарів підкладки:',done);
+}
+map.on('load',()=>{ tintBasemap(); addLayers(); });
 map.on('styledata',()=>{ if(map.isStyleLoaded() && !map.getSource('cities')) addLayers(); });
 
 /* кольори шарів (світла тема) */
 function themeColors(){
-  return {frontHalo:'#ffffff',front:'#d92b20',borderHalo:'#ffffff',borderLine:'#3d5a80',ptStroke:'#ffffff',labelColor:'#1a2634',labelHalo:'#ffffff'};
+  // front і vaRing узгоджені з палітрою статусів (--nobody і --va)
+  return {frontHalo:'#ffffff',front:'#c41e24',borderHalo:'#ffffff',borderLine:'#4a5c68',
+    ptStroke:'#ffffff',labelColor:'#121212',labelHalo:'#ffffff',vaRing:'#15181c'};
 }
 
 /* двомовні підписи укр / eng */
@@ -694,7 +771,8 @@ function basicHTML(c){
   return `<div class="pc"><div class="pc-strip" style="background:${col}"></div><div class="pc-basic">
     <div class="pc-city">${c.city}</div>
     <div class="pc-reg">${c.region} обл. · ${c.district} р-н</div>
-    <div class="pc-status" style="background:${col}22;color:${col}"><span class="d" style="background:${col}"></span>${st.label}</div>
+    <div class="pc-status" style="border-left-color:${col};color:${TAG_INK[c.status]||col};background:${TAG_BG[c.status]||'transparent'}">${st.label}</div>
+    ${c.parallelVA?`<div class="pc-vanote"><span class="ring"></span>Паралельно діє військова адміністрація</div>`:''}
     ${leadLine}
     <div class="pc-hint">Клік — детальніше ▾</div>
   </div></div>`;
@@ -780,7 +858,8 @@ function detailHTML(c){
   let h=`<div class="pc"><div class="pc-strip" style="background:${col}"></div><div class="pc-basic">
     <div class="pc-city">${c.city}</div>
     <div class="pc-reg">${c.region} обл. · ${c.district} р-н</div>
-    <div class="pc-status" style="background:${col}22;color:${col}"><span class="d" style="background:${col}"></span>${st.label}</div>
+    <div class="pc-status" style="border-left-color:${col};color:${TAG_INK[c.status]||col};background:${TAG_BG[c.status]||'transparent'}">${st.label}</div>
+    ${c.parallelVA?`<div class="pc-vanote"><span class="ring"></span>Паралельно діє військова адміністрація${c.parallelVA.since?` з ${yearOf(c.parallelVA.since)}`:''}</div>`:''}
   </div><div class="pc-det">
     <div class="pc-pop">Населення: ${Number(c.pop).toLocaleString('uk-UA')} (2020 рік)</div>`;
 
@@ -988,6 +1067,9 @@ function applyFilter(){
   const f=['in',['get','idx'],['literal',okIdx]];
   if(map.getLayer('pts'))map.setFilter('pts',f);
   if(map.getLayer('glow'))map.setFilter('glow',f);
+  // кільце паралельної ВА ховається разом зі своєю точкою
+  if(map.getLayer('va-ring'))
+    map.setFilter('va-ring',['all',f,['==',['get','parallelVA'],true]]);
   renderList(document.getElementById('q')?document.getElementById('q').value:'');
   if(typeof refreshFilterBadge==='function') refreshFilterBadge();
 }
@@ -1131,9 +1213,11 @@ function renderList(filterText){
   el.innerHTML=items.map(x=>{
     const col=sc(x.c.status);
     return `<div class="row" data-i="${x.i}">
-      <span class="rdot" style="background:${col}"></span>
-      <span class="rn"><span class="rc">${x.c.city}</span><span class="rr">${x.c.region} обл.</span></span>
-      <span class="rp">${Number(x.c.pop).toLocaleString('uk-UA')}</span>
+      <span class="rtop">
+        <span class="rc">${x.c.city}</span>
+        <span class="tag" style="border-left-color:${col};color:${TAG_INK[x.c.status]||col};background:${TAG_BG[x.c.status]||'transparent'}">${TAG_TXT[x.c.status]||''}</span>
+      </span>
+      <span class="rmeta">${x.c.region} обл. · ${Number(x.c.pop).toLocaleString('uk-UA')} мешканців</span>
     </div>`;
   }).join('')||`<div style="padding:14px;color:var(--ink-faint);font-size:12px">Нічого не знайдено</div>`;
   el.querySelectorAll('.row').forEach(r=>{
