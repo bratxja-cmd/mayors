@@ -697,7 +697,7 @@ function addLayers(){
       'circle-stroke-color':T.vaRing,
       /* товщина і відступ ростуть із зумом: на дрібному масштабі кільце
          інакше зливається з самою точкою */
-      'circle-stroke-width':['interpolate',['linear'],['zoom'],5,3,8,4,12,5],
+      'circle-stroke-width':['interpolate',['linear'],['zoom'],5,2.5,8,3,12,3.5],
       'circle-radius':ringRadiusExpr(),
       'circle-opacity':0.95
     }});
@@ -1014,9 +1014,12 @@ function radiusExpr(isGlow){
    Тому zoom лишається зовні, а додавання зазору робимо в кожній точці. */
 function ringRadiusExpr(){
   const pt=(a,b,c,d,e)=>['interpolate',['linear'],['get','spop'],100,a,224,b,608,c,1000,d,1732,e];
+  /* Кільце має щільно облягати точку ззовні. Обведення в MapLibre
+     малюється по центру радіуса, тож зсув = половина товщини обведення
+     + 1.25px (0.75 — біла обводка самої точки, 0.5 — просвіт). */
   return ['interpolate',['linear'],['zoom'],
-    5,  ['+',pt(3.2,5,8.5,12,18),8],
-    10, ['+',pt(6,9.5,17,24,36),11]];
+    5,  ['+',pt(3.2,5,8.5,12,18),2.5],
+    10, ['+',pt(6,9.5,17,24,36),3]];
 }
 function applySize(){
   if(map.getLayer('pts'))  map.setPaintProperty('pts','circle-radius',radiusExpr(false));
