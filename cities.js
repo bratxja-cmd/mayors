@@ -758,7 +758,7 @@ window.CITIES = [
    "name": "Шкут Жанна Анатоліївна",
    "party": "ОПЗЖ",
    "sex": "жінка"
-  }
+  },
   "parallelVA": true
  },
  {
@@ -4185,7 +4185,7 @@ window.CITIES = [
    "sex": "чоловік",
    "since": 2025,
    "years": 1
-  }
+  },
   "parallelVA": true
  },
  {
@@ -5041,7 +5041,7 @@ window.CITIES = [
    "name": "Дерев’янчук Олександр Миколайович",
    "party": "ЄС",
    "sex": "чоловік"
-  }
+  },
   "parallelVA": true
  },
  {
@@ -5239,7 +5239,7 @@ window.CITIES = [
    "sex": "чоловік",
    "since": 2024,
    "years": 2
-  }
+  },
   "parallelVA": true
  },
  {
@@ -6336,7 +6336,7 @@ window.CITIES = [
    "name": "Романюк Іван Васильович",
    "party": "Воля",
    "sex": "чоловік"
-  }
+  },
  "parallelVA": true
  },
  {
@@ -7268,7 +7268,7 @@ window.CITIES = [
    "party": "Рідний дім",
    "years": 8
   },
-  "secretary": null
+  "secretary": null,
   "parallelVA": true
  },
  {
