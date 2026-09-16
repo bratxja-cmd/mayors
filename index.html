@@ -698,8 +698,7 @@ function addLayers(){
       /* товщина і відступ ростуть із зумом: на дрібному масштабі кільце
          інакше зливається з самою точкою */
       'circle-stroke-width':['interpolate',['linear'],['zoom'],5,3,8,4,12,5],
-      'circle-radius':['+',radiusExpr(false),
-        ['interpolate',['linear'],['zoom'],5,7,8,9,12,12]],
+      'circle-radius':ringRadiusExpr(),
       'circle-opacity':0.95
     }});
 
@@ -1008,9 +1007,21 @@ function radiusExpr(isGlow){
     5, ['interpolate',['linear'],['get','spop'],100,3.2*k,224,5*k,608,8.5*k,1000,12*k,1732,18*k],
     10,['interpolate',['linear'],['get','spop'],100,6*k,224,9.5*k,608,17*k,1000,24*k,1732,36*k]];
 }
+/* Радіус кільця паралельної ВА.
+   ВАЖЛИВО: не можна писати ['+', radiusExpr(), N] — усередині radiusExpr
+   сидить ['zoom'], а MapLibre дозволяє zoom лише на найвищому рівні
+   виразу. Такий шар мовчки не додається, і кільця просто немає на карті.
+   Тому zoom лишається зовні, а додавання зазору робимо в кожній точці. */
+function ringRadiusExpr(){
+  const pt=(a,b,c,d,e)=>['interpolate',['linear'],['get','spop'],100,a,224,b,608,c,1000,d,1732,e];
+  return ['interpolate',['linear'],['zoom'],
+    5,  ['+',pt(3.2,5,8.5,12,18),8],
+    10, ['+',pt(6,9.5,17,24,36),11]];
+}
 function applySize(){
   if(map.getLayer('pts'))  map.setPaintProperty('pts','circle-radius',radiusExpr(false));
   if(map.getLayer('glow')) map.setPaintProperty('glow','circle-radius',radiusExpr(true));
+  if(map.getLayer('va-ring')) map.setPaintProperty('va-ring','circle-radius',ringRadiusExpr());
 }
 
 /* ===== Фільтри ===== */
