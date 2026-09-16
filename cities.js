@@ -7511,6 +7511,23 @@ window.CITIES = [
   "va": {}
  },
  {
+  "city": "Костянтинівка",
+  "region": "Донецька",
+  "district": "Краматорський",
+  "pop": 95111,
+  "lat": 48.5267,
+  "lon": 37.7042,
+  "status": "va",
+  "mayor": {
+   "name": "Азаров Олег Анатолійович",
+   "born": 1976,
+   "firstElected": 2020,
+   "party": "ОПЗЖ",
+   "years": 2
+  },
+  "secretary": null
+ },
+ {
   "city": "Білозерське",
   "region": "Донецька",
   "district": "Покровський",
