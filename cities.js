@@ -3405,6 +3405,7 @@ window.CITIES = [
   "lat": 50.4485578,
   "lon": 30.5271623,
   "status": "mayor",
+  "parallelVA": true,
   "mayor": {
    "name": "Кличко Віталій Володимирович",
    "born": 1971,
