@@ -1124,6 +1124,7 @@ window.CITIES = [
    "born": 1971,
    "firstElected": 2020,
    "party": "ОПЗЖ"
+   "years": 3
   },
   "secretary": null,
   "va": {}
