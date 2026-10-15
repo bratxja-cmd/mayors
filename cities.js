@@ -1123,7 +1123,7 @@ window.CITIES = [
    "name": "Хворостянов Анатолій Анатолійович",
    "born": 1971,
    "firstElected": 2020,
-   "party": "ОПЗЖ"
+   "party": "ОПЗЖ",
    "years": 3
   },
   "secretary": null,
